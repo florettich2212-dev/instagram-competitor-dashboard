@@ -553,10 +553,15 @@ async function refreshAccount(username) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username }),
     });
-    if (!res.ok) throw new Error();
-  } catch {
+    if (!res.ok) {
+      const errText = await res.text().catch(() => '');
+      if (btn) { btn.disabled = false; btn.textContent = '↻'; }
+      alert(`Could not start refresh for @${username}\n\nStatus: ${res.status}\n${errText}`);
+      return;
+    }
+  } catch (e) {
     if (btn) { btn.disabled = false; btn.textContent = '↻'; }
-    alert(`Could not start refresh for @${username}`);
+    alert(`Could not start refresh for @${username}\n\nNetwork error: ${e.message}`);
     return;
   }
 
