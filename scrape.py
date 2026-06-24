@@ -103,7 +103,7 @@ def main():
     direct_urls = [f"https://www.instagram.com/{u}/" for u in COMPETITORS]
     posts_raw = run_apify(
         "apify~instagram-scraper",
-        {"directUrls": direct_urls, "resultsType": "posts", "resultsLimit": 75},
+        {"directUrls": direct_urls, "resultsType": "posts", "resultsLimit": 3},
     )
     for post in posts_raw:
         if post.get("error"):
