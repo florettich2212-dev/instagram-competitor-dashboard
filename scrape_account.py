@@ -86,7 +86,7 @@ def main():
     posts_raw = run_apify(
         "apify~instagram-scraper",
         {"directUrls": [f"https://www.instagram.com/{USERNAME}/"],
-         "resultsType": "posts", "resultsLimit": 75,
+         "resultsType": "posts", "resultsLimit": 200,
          "proxy": {"useApifyProxy": True}},
     )
     print(f"  posts scraped: {len(posts_raw)}")
