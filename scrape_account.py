@@ -126,10 +126,16 @@ def main():
             "thumbnail_url":    post.get("localImage") or "",
         })
 
+    # Don't overwrite existing posts if Apify returned nothing (rate limit / block)
+    existing_acc = next((a for a in existing if a["username"] == USERNAME), {})
+    if not posts_out and existing_acc.get("posts"):
+        print(f"WARNING: Apify returned 0 posts for @{USERNAME} — keeping existing {len(existing_acc['posts'])} posts")
+        posts_out = existing_acc["posts"]
+
     new_entry = {
         "username":        USERNAME,
-        "full_name":       full_name,
-        "followers":       followers,
+        "full_name":       full_name or existing_acc.get("full_name", ""),
+        "followers":       followers or existing_acc.get("followers", 0),
         "posts":           posts_out,
         "fetched_at":      datetime.now(timezone.utc).isoformat(),
     }
