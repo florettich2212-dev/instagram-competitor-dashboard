@@ -186,6 +186,13 @@
     .post-badge.vid { background: #f0e8f8; color: #7d29cc; }
     .post-val { font-size: 13px; font-weight: 500; min-width: 44px; text-align: right; flex-shrink: 0; }
     .post-dt { font-size: 11px; color: var(--text3); min-width: 50px; text-align: right; flex-shrink: 0; }
+    .btn-acc-refresh {
+      font-size: 15px; color: var(--text3); background: none; border: none;
+      cursor: pointer; font-family: inherit; padding: 4px 6px;
+      border-radius: 6px; transition: all 0.15s; line-height: 1;
+    }
+    .btn-acc-refresh:hover { background: var(--bg); color: var(--text); }
+    .btn-acc-refresh:disabled { opacity: 0.3; cursor: default; }
     .no-posts-msg { padding: 20px 24px; font-size: 13px; color: var(--text3); }
     .err-msg { margin: 0 20px 12px; padding: 8px 12px; background: #fff2f2; border-radius: 8px; font-size: 12px; color: #c0392b; }
 
@@ -439,6 +446,7 @@ function renderAccounts(data) {
           <div class="acc-handle">@${acc.username}</div>
         </div>
         <a class="acc-link" href="https://instagram.com/${acc.username}" target="_blank" rel="noopener">View ↗</a>
+        <button class="btn-acc-refresh" id="acc-refresh-${acc.username}" onclick="refreshAccount('${acc.username}')" title="Refresh this account">↻</button>
       </div>
       ${acc.error ? `<div class="err-msg">${acc.error}</div>` : ''}
       <div class="acc-kpis">
@@ -532,6 +540,48 @@ async function refreshAll() {
     banner.style.display = 'none';
     btn.disabled = false;
   }, 1200000);
+}
+
+// ─── Single account refresh ───────────────────────────────────────────
+async function refreshAccount(username) {
+  const btn = document.getElementById(`acc-refresh-${username}`);
+  if (btn) { btn.disabled = true; btn.textContent = '⏳'; }
+
+  try {
+    const res = await fetch(WORKER_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username }),
+    });
+    if (!res.ok) throw new Error();
+  } catch {
+    if (btn) { btn.disabled = false; btn.textContent = '↻'; }
+    alert(`Could not start refresh for @${username}`);
+    return;
+  }
+
+  // Poll until this account's fetched_at changes
+  const currentTs = rawData.find(a => a.username === username)?.fetched_at || '';
+  const interval = setInterval(async () => {
+    try {
+      const r = await fetch(`${RAW}/data.json?t=${Date.now()}`);
+      if (!r.ok) return;
+      const data = await r.json();
+      const acc = data.find(a => a.username === username);
+      if (acc && acc.fetched_at !== currentTs) {
+        clearInterval(interval);
+        rawData = data;
+        render();
+        if (btn) { btn.disabled = false; btn.textContent = '↻'; }
+      }
+    } catch {}
+  }, 30000);
+
+  // Stop after 15 min
+  setTimeout(() => {
+    clearInterval(interval);
+    if (btn) { btn.disabled = false; btn.textContent = '↻'; }
+  }, 900000);
 }
 
 // ─── Controls ─────────────────────────────────────────────────────────

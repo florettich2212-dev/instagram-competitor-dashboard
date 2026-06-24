@@ -1,0 +1,50 @@
+name: Scrape Single Account
+
+on:
+  workflow_dispatch:
+    inputs:
+      username:
+        description: 'Instagram username (without @)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install requests Pillow
+
+      - name: Run single account scraper
+        env:
+          APIFY_TOKEN: ${{ secrets.APIFY_TOKEN }}
+          USERNAME: ${{ inputs.username }}
+        run: python scrape_account.py
+
+      - name: Fetch existing images from data branch
+        run: |
+          git fetch origin data 2>/dev/null || true
+          git checkout origin/data -- images/ 2>/dev/null || true
+          cp -r images/. output/images/ 2>/dev/null || true
+
+      - name: Push to data branch
+        run: |
+          cd output
+          git init
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git checkout -b data
+          git add -A
+          git commit -m "Update @${{ inputs.username }} $(date -u '+%Y-%m-%d %H:%M UTC')"
+          git push --force https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git data
