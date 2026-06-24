@@ -306,7 +306,14 @@
 // ─── Config ───────────────────────────────────────────────────────────
 const REPO    = 'florettich2212-dev/instagram-competitor-dashboard';
 const RAW     = `https://raw.githubusercontent.com/${REPO}/data`;
-const GH_TOKEN = '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'; // classic PAT, workflow scope only
+const GH_TOKEN = (() => {
+  let t = localStorage.getItem('gh_token');
+  if (!t) {
+    t = prompt('Enter your GitHub PAT (stored locally in your browser, never sent to any server):');
+    if (t) localStorage.setItem('gh_token', t.trim());
+  }
+  return t || '';
+})(); // classic PAT, workflow scope only
 const PASSWORD = 'leonie2024'; // change this to your desired password
 
 // ─── Auth ─────────────────────────────────────────────────────────────
