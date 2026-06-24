@@ -306,7 +306,7 @@
 // ─── Config ───────────────────────────────────────────────────────────
 const REPO    = 'florettich2212-dev/instagram-competitor-dashboard';
 const RAW     = `https://raw.githubusercontent.com/${REPO}/data`;
-const GH_TOKEN = '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'; // classic PAT, workflow scope only
+const WORKER_URL = 'https://leonie-refresh.florianrettich2212.workers.dev'; // classic PAT, workflow scope only
 const PASSWORD = 'leonie2024'; // change this to your desired password
 
 // ─── Auth ─────────────────────────────────────────────────────────────
@@ -483,7 +483,7 @@ async function loadData() {
   }
 }
 
-// ─── Refresh (triggers GitHub Action) ────────────────────────────────
+// ─── Refresh (via Cloudflare Worker) ─────────────────────────────────
 async function refreshAll() {
   const btn = document.getElementById('refresh-btn');
   const banner = document.getElementById('status-banner');
@@ -493,68 +493,45 @@ async function refreshAll() {
   banner.style.display = 'flex';
   statusText.textContent = 'Starting scrape…';
 
-  // Trigger the workflow
-  const triggerRes = await fetch(
-    `https://api.github.com/repos/${REPO}/actions/workflows/scrape.yml/dispatches`,
-    {
-      method: 'POST',
-      headers: {
-        Authorization: `token ${GH_TOKEN}`,
-        Accept: 'application/vnd.github.v3+json',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ ref: 'main' }),
-    }
-  );
-
-  if (!triggerRes.ok) {
+  try {
+    const res = await fetch(WORKER_URL, { method: 'POST' });
+    if (!res.ok) throw new Error();
+  } catch {
     banner.style.display = 'none';
     btn.disabled = false;
-    alert('Could not start refresh. Check your GitHub token in the HTML config.');
+    alert('Could not start refresh. Please try again.');
     return;
   }
 
-  // Wait 5 seconds for the run to appear, then poll
-  await new Promise(r => setTimeout(r, 5000));
+  statusText.textContent = 'Scraping in progress… (~10 min)';
+  const currentTs = rawData[0]?.fetched_at || '';
 
-  const steps = ['Fetching profiles…', 'Scraping posts…', 'Downloading images…', 'Almost done…'];
-  let stepIdx = 0;
-  const stepTimer = setInterval(() => {
-    stepIdx = Math.min(stepIdx + 1, steps.length - 1);
-    statusText.textContent = steps[stepIdx];
-  }, 90000); // advance message every ~90s
-
-  // Poll action status
-  let attempts = 0;
-  while (attempts < 60) { // max 10 min
-    await new Promise(r => setTimeout(r, 10000));
-    attempts++;
+  const interval = setInterval(async () => {
     try {
-      const runsRes = await fetch(
-        `https://api.github.com/repos/${REPO}/actions/runs?per_page=1&event=workflow_dispatch`,
-        { headers: { Authorization: `token ${GH_TOKEN}` } }
-      );
-      const runs = await runsRes.json();
-      const run = runs.workflow_runs?.[0];
-      if (!run) continue;
-      if (run.status === 'completed') {
-        clearInterval(stepTimer);
-        if (run.conclusion === 'success') {
-          statusText.textContent = 'Done! Loading…';
-          await new Promise(r => setTimeout(r, 3000)); // brief wait for data branch to propagate
-          await loadData();
-        } else {
-          alert(`Scrape failed (${run.conclusion}). Check GitHub Actions for details.`);
-        }
-        break;
+      const r = await fetch(`${RAW}/data.json?t=${Date.now()}`);
+      if (!r.ok) return;
+      const data = await r.json();
+      const newTs = data[0]?.fetched_at || '';
+      if (newTs && newTs !== currentTs) {
+        clearInterval(interval);
+        rawData = data;
+        render();
+        document.getElementById('ts').textContent = new Date(newTs).toLocaleString('en-GB');
+        statusText.textContent = 'Done!';
+        await new Promise(r => setTimeout(r, 1500));
+        banner.style.display = 'none';
+        btn.disabled = false;
+        btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:12px;height:12px"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>Refresh data`;
       }
     } catch { /* keep polling */ }
-  }
+  }, 30000);
 
-  clearInterval(stepTimer);
-  banner.style.display = 'none';
-  btn.disabled = false;
-  btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:12px;height:12px"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>Refresh data`;
+  // Stop after 20 min
+  setTimeout(() => {
+    clearInterval(interval);
+    banner.style.display = 'none';
+    btn.disabled = false;
+  }, 1200000);
 }
 
 // ─── Controls ─────────────────────────────────────────────────────────
