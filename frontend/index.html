@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>lamaisondeleoniie</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #f5f5f7;
+      --surface: #ffffff;
+      --text: #1d1d1f;
+      --text2: #6e6e73;
+      --text3: #86868b;
+      --border: rgba(0,0,0,0.08);
+      --border2: rgba(0,0,0,0.12);
+      --accent: #1d1d1f;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ─── Header ─── */
+    header {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(255,255,255,0.85);
+      backdrop-filter: saturate(180%) blur(20px);
+      -webkit-backdrop-filter: saturate(180%) blur(20px);
+      border-bottom: 1px solid var(--border);
+      height: 52px;
+      display: flex; align-items: center;
+      padding: 0 40px;
+      justify-content: space-between;
+    }
+    .brand {
+      font-size: 17px; font-weight: 600; letter-spacing: -0.02em; color: var(--text);
+    }
+    .brand-sub { font-size: 12px; font-weight: 400; color: var(--text3); margin-left: 10px; }
+
+    .btn-refresh {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: none; border: 1px solid var(--border2);
+      padding: 6px 14px; border-radius: 20px;
+      font-size: 13px; font-weight: 400; color: var(--text2);
+      cursor: pointer; transition: all 0.15s;
+      font-family: inherit;
+    }
+    .btn-refresh:hover { background: var(--text); color: white; border-color: var(--text); }
+    .btn-refresh:disabled { opacity: 0.4; cursor: default; }
+    .btn-refresh svg { width: 12px; height: 12px; }
+
+    /* ─── Controls ─── */
+    .controls {
+      background: rgba(255,255,255,0.7);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 40px;
+      height: 44px;
+      display: flex; align-items: center; gap: 20px;
+    }
+    .ctrl-label { font-size: 12px; color: var(--text3); }
+
+    .pill-select-wrap { position: relative; display: inline-flex; align-items: center; }
+    .pill-select {
+      font-family: inherit; font-size: 13px; font-weight: 400;
+      color: var(--text); background: none; border: none;
+      appearance: none; padding: 0 18px 0 0; cursor: pointer;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5'%3E%3Cpath d='M0 0l4 5 4-5z' fill='%2386868b'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 2px center;
+    }
+
+    .seg {
+      display: inline-flex;
+      background: rgba(0,0,0,0.05);
+      border-radius: 8px; padding: 2px;
+    }
+    .seg-btn {
+      font-family: inherit; font-size: 12px; font-weight: 400;
+      padding: 4px 12px; border-radius: 6px; border: none; background: none;
+      color: var(--text2); cursor: pointer; transition: all 0.15s;
+    }
+    .seg-btn.active {
+      background: var(--surface);
+      color: var(--text);
+      font-weight: 500;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1), 0 1px 1px rgba(0,0,0,0.06);
+    }
+
+    /* ─── Stats bar ─── */
+    .stats-bar {
+      display: grid; grid-template-columns: repeat(4, 1fr);
+      gap: 1px; background: var(--border);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      margin: 0;
+    }
+    .stat-block {
+      padding: 24px 40px; border-right: 1px solid var(--border);
+    }
+    .stat-block:last-child { border-right: none; }
+    .stat-n {
+      font-size: 36px; font-weight: 200; letter-spacing: -0.03em; color: var(--text);
+      line-height: 1;
+    }
+    .stat-l { font-size: 12px; color: var(--text3); margin-top: 4px; }
+
+    /* ─── Layout ─── */
+    .page { padding: 48px 40px; }
+
+    .section-label {
+      font-size: 22px; font-weight: 600; letter-spacing: -0.02em;
+      margin-bottom: 16px;
+    }
+
+    /* ─── Spotlight grid ─── */
+    .spotlight {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 3px;
+      border-radius: 18px; overflow: hidden;
+      margin-bottom: 64px;
+    }
+    .sp-card {
+      position: relative; aspect-ratio: 1;
+      background: #e5e5ea; overflow: hidden;
+      cursor: pointer; display: block; text-decoration: none; color: inherit;
+    }
+    .sp-img {
+      width: 100%; height: 100%; object-fit: cover; display: block;
+      transition: transform 0.5s cubic-bezier(0.25,0.46,0.45,0.94);
+    }
+    .sp-card:hover .sp-img { transform: scale(1.04); }
+    .sp-overlay {
+      position: absolute; inset: 0;
+      background: linear-gradient(to top, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0) 55%);
+      opacity: 0; transition: opacity 0.25s ease;
+      display: flex; flex-direction: column; justify-content: flex-end;
+      padding: 14px;
+    }
+    .sp-card:hover .sp-overlay { opacity: 1; }
+    .sp-account { font-size: 10px; font-weight: 600; color: rgba(255,255,255,0.7); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 2px; }
+    .sp-caption { font-size: 11px; color: rgba(255,255,255,0.9); line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin-bottom: 8px; }
+    .sp-stats { display: flex; align-items: center; gap: 10px; }
+    .sp-stat { font-size: 11px; color: rgba(255,255,255,0.85); display: flex; align-items: center; gap: 3px; }
+    .sp-stat svg { width: 10px; height: 10px; }
+    .sp-er { margin-left: auto; font-size: 10px; font-weight: 600; color: rgba(255,255,255,0.9); }
+    .sp-rank {
+      position: absolute; top: 10px; left: 10px;
+      font-size: 11px; font-weight: 600; color: white;
+      background: rgba(0,0,0,0.4); backdrop-filter: blur(8px);
+      padding: 2px 8px; border-radius: 20px;
+    }
+    .sp-ph {
+      width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;
+      background: #e5e5ea; color: var(--text3); font-size: 12px;
+    }
+
+    /* ─── Account cards ─── */
+    .accounts { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+    .acc-card {
+      background: var(--surface); border-radius: 18px;
+      overflow: hidden;
+    }
+    .acc-top {
+      padding: 20px 24px 16px;
+      display: flex; align-items: center; gap: 12px;
+    }
+    .acc-avatar {
+      width: 44px; height: 44px; border-radius: 50%; flex-shrink: 0;
+      background: #e5e5ea; display: flex; align-items: center; justify-content: center;
+      font-size: 14px; font-weight: 600; color: var(--text2);
+    }
+    .acc-info { flex: 1; min-width: 0; }
+    .acc-name { font-size: 15px; font-weight: 600; letter-spacing: -0.01em; }
+    .acc-handle { font-size: 12px; color: var(--text3); margin-top: 1px; }
+    .acc-link {
+      font-size: 12px; color: #0071e3; text-decoration: none; white-space: nowrap;
+      transition: opacity 0.15s;
+    }
+    .acc-link:hover { opacity: 0.7; }
+    .acc-kpis {
+      display: grid; grid-template-columns: repeat(3, 1fr);
+      border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+    }
+    .kpi { padding: 12px 0; text-align: center; border-right: 1px solid var(--border); }
+    .kpi:last-child { border-right: none; }
+    .kpi-n { font-size: 20px; font-weight: 300; letter-spacing: -0.02em; color: var(--text); }
+    .kpi-l { font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.06em; margin-top: 1px; }
+    .post-rows {}
+    .post-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 10px 20px; text-decoration: none; color: inherit;
+      border-bottom: 1px solid var(--border); transition: background 0.12s;
+    }
+    .post-item:last-child { border-bottom: none; }
+    .post-item:hover { background: var(--bg); }
+    .post-num { width: 16px; font-size: 11px; color: var(--text3); text-align: right; flex-shrink: 0; }
+    .post-num.top { color: var(--text); font-weight: 600; }
+    .post-img {
+      width: 38px; height: 38px; border-radius: 8px; object-fit: cover;
+      background: #e5e5ea; flex-shrink: 0;
+    }
+    .post-img-ph { width: 38px; height: 38px; border-radius: 8px; background: #e5e5ea; flex-shrink: 0; }
+    .post-cap {
+      flex: 1; font-size: 12px; color: var(--text2);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .post-badge {
+      font-size: 9px; font-weight: 600; letter-spacing: 0.04em;
+      padding: 2px 6px; border-radius: 4px;
+      background: #f0f0f5; color: var(--text3); flex-shrink: 0;
+    }
+    .post-badge.vid { background: #f0e8f8; color: #7d29cc; }
+    .post-val { font-size: 13px; font-weight: 500; color: var(--text); min-width: 44px; text-align: right; flex-shrink: 0; }
+    .post-dt { font-size: 11px; color: var(--text3); min-width: 50px; text-align: right; flex-shrink: 0; }
+    .no-posts-msg { padding: 20px 24px; font-size: 13px; color: var(--text3); }
+    .err-msg { margin: 0 20px 12px; padding: 8px 12px; background: #fff2f2; border-radius: 8px; font-size: 12px; color: #c0392b; }
+
+    /* ─── Skeleton ─── */
+    .skeleton-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+    .sk-card { background: var(--surface); border-radius: 18px; padding: 24px; animation: sk 1.4s ease infinite; }
+    @keyframes sk { 0%,100%{opacity:1}50%{opacity:.4} }
+    .sk-line { background: var(--bg); border-radius: 6px; margin-bottom: 10px; }
+
+    /* ─── Footer ─── */
+    footer { text-align: center; padding: 32px; font-size: 12px; color: var(--text3); }
+  </style>
+</head>
+<body>
+
+<header>
+  <div>
+    <span class="brand">lamaisondeleoniie</span>
+    <span class="brand-sub">Competitor Tracker</span>
+  </div>
+  <button class="btn-refresh" id="refresh-btn" onclick="refreshAll()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
+    </svg>
+    Refresh
+  </button>
+</header>
+
+<div class="controls">
+  <span class="ctrl-label">Window</span>
+  <div class="pill-select-wrap">
+    <select class="pill-select" id="days-select" onchange="changeDays(this.value)">
+      <option value="7">Last 7 days</option>
+      <option value="21" selected>Last 21 days</option>
+      <option value="60">Last 60 days</option>
+      <option value="90">Last 90 days</option>
+      <option value="180">Last 180 days</option>
+    </select>
+  </div>
+  <div style="width:1px;height:16px;background:var(--border2)"></div>
+  <span class="ctrl-label">Sort by</span>
+  <div class="seg">
+    <button class="seg-btn active" onclick="setSort('likes',this)">Likes</button>
+    <button class="seg-btn" onclick="setSort('comments',this)">Comments</button>
+    <button class="seg-btn" onclick="setSort('engagement_rate',this)">ER %</button>
+    <button class="seg-btn" onclick="setSort('date',this)">Newest</button>
+  </div>
+</div>
+
+<div class="stats-bar">
+  <div class="stat-block">
+    <div class="stat-n" id="sum-accounts">9</div>
+    <div class="stat-l">Accounts tracked</div>
+  </div>
+  <div class="stat-block">
+    <div class="stat-n" id="sum-posts">—</div>
+    <div class="stat-l">Posts in window</div>
+  </div>
+  <div class="stat-block">
+    <div class="stat-n" id="sum-er">—</div>
+    <div class="stat-l">Avg engagement rate</div>
+  </div>
+  <div class="stat-block">
+    <div class="stat-n" id="sum-best" style="font-size:20px;font-weight:400;padding-top:8px">—</div>
+    <div class="stat-l" id="sum-best-sub">Top account</div>
+  </div>
+</div>
+
+<div class="page">
+  <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:16px">
+    <div class="section-label" style="margin-bottom:0">Top posts</div>
+    <div class="seg" id="limit-seg">
+      <button class="seg-btn active" onclick="setLimit(8,this)">8</button>
+      <button class="seg-btn" onclick="setLimit(20,this)">20</button>
+      <button class="seg-btn" onclick="setLimit(50,this)">50</button>
+      <button class="seg-btn" onclick="setLimit(100,this)">100</button>
+      <button class="seg-btn" onclick="setLimit(200,this)">200</button>
+    </div>
+  </div>
+  <div class="spotlight" id="spotlight"></div>
+
+  <div class="section-label">All accounts</div>
+  <div class="accounts" id="accounts">
+    <div class="skeleton-grid" style="grid-column:1/-1">
+      ${[1,2,3,4].map(()=>`<div class="sk-card"><div class="sk-line" style="width:40%;height:14px"></div><div class="sk-line" style="width:24%"></div><div class="sk-line" style="width:100%;margin-top:16px"></div><div class="sk-line"></div><div class="sk-line" style="width:70%"></div></div>`).join('')}
+    </div>
+  </div>
+</div>
+
+<footer>Data cached 3 hours &nbsp;·&nbsp; <span id="ts">—</span></footer>
+
+<script>
+let allData = [], currentSort = 'likes', currentDays = 21, spotlightLimit = 8;
+const API = 'http://localhost:5051';
+
+const px = url => {
+  if (!url) return '';
+  if (url.startsWith('/api/images/')) return API + url;
+  return `${API}/api/image-proxy?url=${encodeURIComponent(url)}`;
+};
+const fmt = n => { if(!n)return'0'; if(n>=1e6)return(n/1e6).toFixed(1)+'M'; if(n>=1000)return(n/1000).toFixed(1)+'K'; return ''+n; };
+const fmtD = iso => new Date(iso).toLocaleDateString('en-GB',{day:'numeric',month:'short'});
+const ini = s => (s||'').split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase()||'?';
+const sp = posts => [...(posts||[])].sort((a,b)=> currentSort==='date'? new Date(b.date)-new Date(a.date) : b[currentSort]-a[currentSort]);
+const mv = p => { if(currentSort==='comments') return fmt(p.comments); if(currentSort==='engagement_rate') return p.engagement_rate+'%'; if(currentSort==='date') return fmtD(p.date); return fmt(p.likes); };
+
+function renderSpotlight(data) {
+  const all = [];
+  data.forEach(a => (a.posts||[]).forEach(p => all.push({...p, _a: a.username})));
+  all.sort((a,b) => currentSort==='date' ? new Date(b.date)-new Date(a.date) : b[currentSort]-a[currentSort]);
+  const top = all.slice(0, spotlightLimit);
+  const el = document.getElementById('spotlight');
+  if (!top.length) { el.innerHTML='<p style="grid-column:1/-1;padding:40px;text-align:center;color:var(--text3);font-size:14px">No posts in this window.</p>'; return; }
+  el.innerHTML = top.map((p,i) => `
+    <a class="sp-card" href="${p.url}" target="_blank" rel="noopener">
+      ${p.thumbnail_url
+        ? `<img class="sp-img" src="${px(p.thumbnail_url)}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
+        : ''}
+      <div class="sp-ph" style="display:${p.thumbnail_url?'none':'flex'}"></div>
+      <div class="sp-overlay">
+        <div class="sp-account">${p._a}</div>
+        <div class="sp-caption">${p.caption||'—'}</div>
+        <div class="sp-stats">
+          <span class="sp-stat">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+            ${fmt(p.likes)}
+          </span>
+          <span class="sp-stat">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            ${fmt(p.comments)}
+          </span>
+          <span class="sp-er">${p.engagement_rate}% ER</span>
+        </div>
+      </div>
+      <div class="sp-rank">${i+1}</div>
+    </a>`).join('');
+}
+
+function renderSummary(data) {
+  const posts = data.flatMap(a=>a.posts||[]);
+  document.getElementById('sum-posts').textContent = posts.length;
+  const ers = posts.map(p=>p.engagement_rate).filter(Boolean);
+  document.getElementById('sum-er').textContent = ers.length ? (ers.reduce((s,v)=>s+v,0)/ers.length).toFixed(2)+'%' : '—';
+  const best = [...data].map(a=>({u:a.username,e:a.posts?.length?(a.posts.reduce((s,p)=>s+p.engagement_rate,0)/a.posts.length):0})).sort((a,b)=>b.e-a.e)[0];
+  if(best){ document.getElementById('sum-best').textContent='@'+best.u; document.getElementById('sum-best-sub').textContent=best.e.toFixed(2)+'% avg ER'; }
+}
+
+function renderAccounts(data) {
+  const sorted = [...data].sort((a,b)=>{
+    const ap=sp(a.posts)[0], bp=sp(b.posts)[0];
+    if(!ap&&!bp)return 0; if(!ap)return 1; if(!bp)return -1;
+    return currentSort==='date' ? new Date(bp.date)-new Date(ap.date) : bp[currentSort]-ap[currentSort];
+  });
+  document.getElementById('accounts').innerHTML = sorted.map(acc=>{
+    const posts = sp(acc.posts);
+    const avgEr = posts.length?(posts.reduce((s,p)=>s+p.engagement_rate,0)/posts.length).toFixed(2):'0';
+    return `
+    <div class="acc-card">
+      <div class="acc-top">
+        <div class="acc-avatar">${ini(acc.full_name||acc.username)}</div>
+        <div class="acc-info">
+          <div class="acc-name">${acc.full_name||acc.username}</div>
+          <div class="acc-handle">@${acc.username}</div>
+        </div>
+        <a class="acc-link" href="https://instagram.com/${acc.username}" target="_blank" rel="noopener">View ↗</a>
+      </div>
+      ${acc.error?`<div class="err-msg">${acc.error}</div>`:''}
+      <div class="acc-kpis">
+        <div class="kpi"><div class="kpi-n">${fmt(acc.followers||0)}</div><div class="kpi-l">Followers</div></div>
+        <div class="kpi"><div class="kpi-n">${posts.length}</div><div class="kpi-l">Posts</div></div>
+        <div class="kpi"><div class="kpi-n">${avgEr}%</div><div class="kpi-l">Avg ER</div></div>
+      </div>
+      ${posts.length===0?`<p class="no-posts-msg">No posts in this window.</p>`:`
+      <div class="post-rows">
+        ${posts.slice(0,5).map((p,i)=>`
+          <a class="post-item" href="${p.url}" target="_blank" rel="noopener">
+            <span class="post-num ${i===0?'top':''}">${i+1}</span>
+            ${p.thumbnail_url
+              ? `<img class="post-img" src="${px(p.thumbnail_url)}" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'post-img-ph'}))">`
+              : `<div class="post-img-ph"></div>`}
+            <span class="post-cap">${p.caption||'—'}</span>
+            <span class="post-badge ${p.is_video?'vid':''}">${p.is_video?'VID':'IMG'}</span>
+            <span class="post-val">${mv(p)}</span>
+            <span class="post-dt">${fmtD(p.date)}</span>
+          </a>`).join('')}
+      </div>`}
+    </div>`;
+  }).join('');
+}
+
+async function loadData() {
+  try {
+    const r = await fetch(`${API}/api/competitors?days=${currentDays}`);
+    if(!r.ok) throw new Error();
+    allData = await r.json();
+    renderSpotlight(allData); renderSummary(allData); renderAccounts(allData);
+    document.getElementById('ts').textContent = 'Updated '+new Date().toLocaleTimeString();
+  } catch {
+    document.getElementById('accounts').innerHTML = `
+      <div style="grid-column:1/-1;padding:60px;text-align:center">
+        <p style="font-size:17px;font-weight:600;margin-bottom:8px">Backend not running</p>
+        <p style="font-size:14px;color:var(--text3);margin-bottom:20px">Start the server: <code style="font-size:12px;background:var(--bg);padding:2px 8px;border-radius:6px">cd ~/instagram-dashboard/backend && python app.py</code></p>
+        <button class="btn-refresh" onclick="loadData()">Retry</button>
+      </div>`;
+  }
+}
+
+function setLimit(n, el) {
+  spotlightLimit = n;
+  document.querySelectorAll('#limit-seg .seg-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  if (allData.length) renderSpotlight(allData);
+}
+
+function setSort(k,el) {
+  currentSort=k;
+  document.querySelectorAll('.seg-btn').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  if(allData.length){renderSpotlight(allData);renderAccounts(allData);}
+}
+
+function changeDays(v) { currentDays=parseInt(v); loadData(); }
+
+async function refreshAll() {
+  const btn = document.getElementById('refresh-btn');
+  btn.disabled = true;
+  const skeletons = `<div class="skeleton-grid" style="grid-column:1/-1">${[1,2,3,4].map(()=>`<div class="sk-card"><div class="sk-line" style="width:40%;height:14px"></div><div class="sk-line" style="width:24%"></div><div class="sk-line" style="width:100%;margin-top:16px"></div><div class="sk-line"></div><div class="sk-line" style="width:70%"></div></div>`).join('')}</div>`;
+  document.getElementById('spotlight').innerHTML = '';
+  document.getElementById('accounts').innerHTML = skeletons;
+
+  await fetch(`${API}/api/refresh?days=${currentDays}`, { method: 'POST' });
+
+  const steps = ['Fetching profiles…', 'Scraping posts…', 'Downloading images…', 'Almost there…'];
+  let step = 0;
+  const tick = setInterval(() => {
+    btn.textContent = steps[Math.min(step++, steps.length - 1)];
+  }, 30000);
+
+  while (true) {
+    await new Promise(r => setTimeout(r, 4000));
+    try {
+      const s = await fetch(`${API}/api/refresh/status`).then(r => r.json());
+      if (s.status === 'done') break;
+      if (s.status === 'error') { clearInterval(tick); alert('Refresh failed: ' + s.error); break; }
+    } catch { break; }
+  }
+
+  clearInterval(tick);
+  await loadData();
+  btn.disabled = false;
+  btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:12px;height:12px"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>Refresh`;
+}
+
+loadData();
+</script>
+</body>
+</html>

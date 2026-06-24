@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+*.egg-info/
+
+# Secrets
+.env
+.flaskenv
+
+# Cache & downloaded images (re-generated on first refresh)
+backend/cache/
+backend/images/
+
+# macOS
+.DS_Store
