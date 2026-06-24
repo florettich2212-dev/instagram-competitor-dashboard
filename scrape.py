@@ -26,6 +26,21 @@ COMPETITORS = [
     "charlottetaylr",
     "seventeenandfive",
     "marangelinari",
+    "lille_arkiv",
+    "iamlinaangelina",
+    "maeisonjen",
+    "eloisepreen",
+    "bernstein_",
+    "herz.und.blut",
+    "konradpichlmeier",
+    "ronneshome",
+    "hannesmauritzson",
+    "pieterpeulen",
+    "maisonbymia",
+    "casa.anaclara",
+    "maison_herrfurth",
+    "liebs_hier",
+    "metsamoodi",
 ]
 
 IMG_HEADERS = {
