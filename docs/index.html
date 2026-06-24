@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>lamaisondeleoniie — Competitor Tracker</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #f5f5f7; --surface: #ffffff; --text: #1d1d1f;
+      --text2: #6e6e73; --text3: #86868b;
+      --border: rgba(0,0,0,0.08); --border2: rgba(0,0,0,0.12);
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
+      background: var(--bg); color: var(--text); -webkit-font-smoothing: antialiased;
+    }
+
+    /* ─── Login ─── */
+    #login-screen {
+      min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    }
+    .login-card {
+      background: #fff; border-radius: 20px; padding: 48px 40px;
+      width: 360px; box-shadow: 0 2px 20px rgba(0,0,0,0.07); text-align: center;
+    }
+    .login-logo { font-size: 12px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: #86868b; margin-bottom: 28px; }
+    .login-card h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 6px; }
+    .login-card p { font-size: 14px; color: #6e6e73; margin-bottom: 28px; }
+    .login-card input {
+      width: 100%; padding: 14px 16px; border: 1.5px solid rgba(0,0,0,0.1);
+      border-radius: 12px; font-size: 15px; font-family: inherit;
+      outline: none; transition: border-color 0.15s; margin-bottom: 12px; background: #fafafa;
+    }
+    .login-card input:focus { border-color: #1d1d1f; background: #fff; }
+    .login-card button {
+      width: 100%; padding: 14px; background: #1d1d1f; color: #fff;
+      border: none; border-radius: 12px; font-size: 15px; font-weight: 600;
+      font-family: inherit; cursor: pointer; transition: opacity 0.15s;
+    }
+    .login-card button:hover { opacity: 0.85; }
+    .login-err { color: #ff3b30; font-size: 13px; margin-top: 12px; display: none; }
+
+    /* ─── App ─── */
+    #app { display: none; }
+
+    /* ─── Header ─── */
+    header {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(255,255,255,0.85);
+      backdrop-filter: saturate(180%) blur(20px);
+      -webkit-backdrop-filter: saturate(180%) blur(20px);
+      border-bottom: 1px solid var(--border);
+      height: 52px; display: flex; align-items: center;
+      padding: 0 40px; justify-content: space-between;
+    }
+    .brand { font-size: 17px; font-weight: 600; letter-spacing: -0.02em; }
+    .brand-sub { font-size: 12px; font-weight: 400; color: var(--text3); margin-left: 10px; }
+    .header-right { display: flex; align-items: center; gap: 10px; }
+    .btn-refresh {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: none; border: 1px solid var(--border2);
+      padding: 6px 14px; border-radius: 20px;
+      font-size: 13px; font-weight: 400; color: var(--text2);
+      cursor: pointer; transition: all 0.15s; font-family: inherit;
+    }
+    .btn-refresh:hover { background: var(--text); color: white; border-color: var(--text); }
+    .btn-refresh:disabled { opacity: 0.4; cursor: default; }
+    .btn-refresh svg { width: 12px; height: 12px; }
+    .btn-logout {
+      font-size: 12px; color: var(--text3); background: none; border: none;
+      cursor: pointer; font-family: inherit; transition: color 0.15s;
+    }
+    .btn-logout:hover { color: var(--text); }
+
+    /* ─── Controls ─── */
+    .controls {
+      background: rgba(255,255,255,0.7); backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 40px; height: 44px;
+      display: flex; align-items: center; gap: 20px;
+    }
+    .ctrl-label { font-size: 12px; color: var(--text3); }
+    .pill-select-wrap { position: relative; display: inline-flex; align-items: center; }
+    .pill-select {
+      font-family: inherit; font-size: 13px; color: var(--text);
+      background: none; border: none; appearance: none;
+      padding: 0 18px 0 0; cursor: pointer;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5'%3E%3Cpath d='M0 0l4 5 4-5z' fill='%2386868b'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 2px center;
+    }
+    .seg {
+      display: inline-flex; background: rgba(0,0,0,0.05);
+      border-radius: 8px; padding: 2px;
+    }
+    .seg-btn {
+      font-family: inherit; font-size: 12px;
+      padding: 4px 12px; border-radius: 6px; border: none; background: none;
+      color: var(--text2); cursor: pointer; transition: all 0.15s;
+    }
+    .seg-btn.active {
+      background: var(--surface); color: var(--text); font-weight: 500;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1), 0 1px 1px rgba(0,0,0,0.06);
+    }
+
+    /* ─── Stats bar ─── */
+    .stats-bar {
+      display: grid; grid-template-columns: repeat(4, 1fr);
+      background: var(--surface);
+      border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+    }
+    .stat-block { padding: 24px 40px; border-right: 1px solid var(--border); }
+    .stat-block:last-child { border-right: none; }
+    .stat-n { font-size: 36px; font-weight: 200; letter-spacing: -0.03em; line-height: 1; }
+    .stat-l { font-size: 12px; color: var(--text3); margin-top: 4px; }
+
+    /* ─── Page ─── */
+    .page { padding: 48px 40px; }
+    .section-label { font-size: 22px; font-weight: 600; letter-spacing: -0.02em; margin-bottom: 16px; }
+
+    /* ─── Spotlight ─── */
+    .spotlight {
+      display: grid; grid-template-columns: repeat(4, 1fr);
+      gap: 3px; border-radius: 18px; overflow: hidden; margin-bottom: 64px;
+    }
+    .sp-card {
+      position: relative; aspect-ratio: 1;
+      background: #e5e5ea; overflow: hidden;
+      cursor: pointer; display: block; text-decoration: none; color: inherit;
+    }
+    .sp-img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.5s cubic-bezier(0.25,0.46,0.45,0.94); }
+    .sp-card:hover .sp-img { transform: scale(1.04); }
+    .sp-overlay {
+      position: absolute; inset: 0;
+      background: linear-gradient(to top, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0) 55%);
+      opacity: 0; transition: opacity 0.25s ease;
+      display: flex; flex-direction: column; justify-content: flex-end; padding: 14px;
+    }
+    .sp-card:hover .sp-overlay { opacity: 1; }
+    .sp-account { font-size: 10px; font-weight: 600; color: rgba(255,255,255,0.7); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 2px; }
+    .sp-caption { font-size: 11px; color: rgba(255,255,255,0.9); line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin-bottom: 8px; }
+    .sp-stats { display: flex; align-items: center; gap: 10px; }
+    .sp-stat { font-size: 11px; color: rgba(255,255,255,0.85); display: flex; align-items: center; gap: 3px; }
+    .sp-stat svg { width: 10px; height: 10px; }
+    .sp-er { margin-left: auto; font-size: 10px; font-weight: 600; color: rgba(255,255,255,0.9); }
+    .sp-rank {
+      position: absolute; top: 10px; left: 10px;
+      font-size: 11px; font-weight: 600; color: white;
+      background: rgba(0,0,0,0.4); backdrop-filter: blur(8px);
+      padding: 2px 8px; border-radius: 20px;
+    }
+    .sp-ph { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: #e5e5ea; }
+
+    /* ─── Accounts ─── */
+    .accounts { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+    .acc-card { background: var(--surface); border-radius: 18px; overflow: hidden; }
+    .acc-top { padding: 20px 24px 16px; display: flex; align-items: center; gap: 12px; }
+    .acc-avatar {
+      width: 44px; height: 44px; border-radius: 50%; flex-shrink: 0;
+      background: #e5e5ea; display: flex; align-items: center; justify-content: center;
+      font-size: 14px; font-weight: 600; color: var(--text2);
+    }
+    .acc-info { flex: 1; min-width: 0; }
+    .acc-name { font-size: 15px; font-weight: 600; letter-spacing: -0.01em; }
+    .acc-handle { font-size: 12px; color: var(--text3); margin-top: 1px; }
+    .acc-link { font-size: 12px; color: #0071e3; text-decoration: none; white-space: nowrap; }
+    .acc-link:hover { opacity: 0.7; }
+    .acc-kpis { display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+    .kpi { padding: 12px 0; text-align: center; border-right: 1px solid var(--border); }
+    .kpi:last-child { border-right: none; }
+    .kpi-n { font-size: 20px; font-weight: 300; letter-spacing: -0.02em; }
+    .kpi-l { font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.06em; margin-top: 1px; }
+    .post-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 10px 20px; text-decoration: none; color: inherit;
+      border-bottom: 1px solid var(--border); transition: background 0.12s;
+    }
+    .post-item:last-child { border-bottom: none; }
+    .post-item:hover { background: var(--bg); }
+    .post-num { width: 16px; font-size: 11px; color: var(--text3); text-align: right; flex-shrink: 0; }
+    .post-num.top { color: var(--text); font-weight: 600; }
+    .post-img { width: 38px; height: 38px; border-radius: 8px; object-fit: cover; background: #e5e5ea; flex-shrink: 0; }
+    .post-img-ph { width: 38px; height: 38px; border-radius: 8px; background: #e5e5ea; flex-shrink: 0; }
+    .post-cap { flex: 1; font-size: 12px; color: var(--text2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .post-badge { font-size: 9px; font-weight: 600; letter-spacing: 0.04em; padding: 2px 6px; border-radius: 4px; background: #f0f0f5; color: var(--text3); flex-shrink: 0; }
+    .post-badge.vid { background: #f0e8f8; color: #7d29cc; }
+    .post-val { font-size: 13px; font-weight: 500; min-width: 44px; text-align: right; flex-shrink: 0; }
+    .post-dt { font-size: 11px; color: var(--text3); min-width: 50px; text-align: right; flex-shrink: 0; }
+    .no-posts-msg { padding: 20px 24px; font-size: 13px; color: var(--text3); }
+    .err-msg { margin: 0 20px 12px; padding: 8px 12px; background: #fff2f2; border-radius: 8px; font-size: 12px; color: #c0392b; }
+
+    /* ─── Skeleton ─── */
+    .skeleton-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+    .sk-card { background: var(--surface); border-radius: 18px; padding: 24px; animation: sk 1.4s ease infinite; }
+    @keyframes sk { 0%,100%{opacity:1}50%{opacity:.4} }
+    .sk-line { background: var(--bg); border-radius: 6px; margin-bottom: 10px; }
+
+    /* ─── Status banner ─── */
+    #status-banner {
+      display: none; position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+      background: #1d1d1f; color: #fff; padding: 12px 24px; border-radius: 24px;
+      font-size: 14px; font-weight: 500; z-index: 999;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+      display: none; align-items: center; gap: 10px;
+    }
+    .spinner {
+      width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: white; border-radius: 50%; animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    footer { text-align: center; padding: 32px; font-size: 12px; color: var(--text3); }
+  </style>
+</head>
+<body>
+
+<!-- ─── Login ─── -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-logo">lamaisondeleoniie</div>
+    <h1>Dashboard</h1>
+    <p>Enter your password to continue</p>
+    <form onsubmit="doLogin(event)">
+      <input type="password" id="pw-input" placeholder="Password" autofocus autocomplete="current-password" />
+      <button type="submit">Sign In</button>
+      <div class="login-err" id="login-err">Incorrect password. Try again.</div>
+    </form>
+  </div>
+</div>
+
+<!-- ─── App ─── -->
+<div id="app">
+  <header>
+    <div>
+      <span class="brand">lamaisondeleoniie</span>
+      <span class="brand-sub">Competitor Tracker</span>
+    </div>
+    <div class="header-right">
+      <button class="btn-refresh" id="refresh-btn" onclick="refreshAll()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
+        </svg>
+        Refresh data
+      </button>
+      <button class="btn-logout" onclick="doLogout()">Sign out</button>
+    </div>
+  </header>
+
+  <div class="controls">
+    <span class="ctrl-label">Window</span>
+    <div class="pill-select-wrap">
+      <select class="pill-select" id="days-select" onchange="changeDays(this.value)">
+        <option value="7">Last 7 days</option>
+        <option value="21" selected>Last 21 days</option>
+        <option value="60">Last 60 days</option>
+        <option value="90">Last 90 days</option>
+        <option value="180">Last 180 days</option>
+      </select>
+    </div>
+    <div style="width:1px;height:16px;background:var(--border2)"></div>
+    <span class="ctrl-label">Sort by</span>
+    <div class="seg">
+      <button class="seg-btn active" onclick="setSort('likes',this)">Likes</button>
+      <button class="seg-btn" onclick="setSort('comments',this)">Comments</button>
+      <button class="seg-btn" onclick="setSort('engagement_rate',this)">ER %</button>
+      <button class="seg-btn" onclick="setSort('date',this)">Newest</button>
+    </div>
+  </div>
+
+  <div class="stats-bar">
+    <div class="stat-block"><div class="stat-n" id="sum-accounts">9</div><div class="stat-l">Accounts tracked</div></div>
+    <div class="stat-block"><div class="stat-n" id="sum-posts">—</div><div class="stat-l">Posts in window</div></div>
+    <div class="stat-block"><div class="stat-n" id="sum-er">—</div><div class="stat-l">Avg engagement rate</div></div>
+    <div class="stat-block"><div class="stat-n" id="sum-best" style="font-size:20px;font-weight:400;padding-top:8px">—</div><div class="stat-l" id="sum-best-sub">Top account</div></div>
+  </div>
+
+  <div class="page">
+    <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:16px">
+      <div class="section-label" style="margin-bottom:0">Top posts</div>
+      <div class="seg" id="limit-seg">
+        <button class="seg-btn active" onclick="setLimit(8,this)">8</button>
+        <button class="seg-btn" onclick="setLimit(20,this)">20</button>
+        <button class="seg-btn" onclick="setLimit(50,this)">50</button>
+        <button class="seg-btn" onclick="setLimit(100,this)">100</button>
+        <button class="seg-btn" onclick="setLimit(200,this)">200</button>
+      </div>
+    </div>
+    <div class="spotlight" id="spotlight"></div>
+
+    <div class="section-label">All accounts</div>
+    <div class="accounts" id="accounts">
+      <div class="skeleton-grid" style="grid-column:1/-1">
+        <div class="sk-card"><div class="sk-line" style="width:40%;height:14px"></div><div class="sk-line" style="width:24%"></div><div class="sk-line" style="width:100%;margin-top:16px"></div><div class="sk-line"></div><div class="sk-line" style="width:70%"></div></div>
+        <div class="sk-card"><div class="sk-line" style="width:40%;height:14px"></div><div class="sk-line" style="width:24%"></div><div class="sk-line" style="width:100%;margin-top:16px"></div><div class="sk-line"></div><div class="sk-line" style="width:70%"></div></div>
+        <div class="sk-card"><div class="sk-line" style="width:40%;height:14px"></div><div class="sk-line" style="width:24%"></div><div class="sk-line" style="width:100%;margin-top:16px"></div><div class="sk-line"></div><div class="sk-line" style="width:70%"></div></div>
+        <div class="sk-card"><div class="sk-line" style="width:40%;height:14px"></div><div class="sk-line" style="width:24%"></div><div class="sk-line" style="width:100%;margin-top:16px"></div><div class="sk-line"></div><div class="sk-line" style="width:70%"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="status-banner"><div class="spinner"></div><span id="status-text">Starting…</span></div>
+  <footer>Last updated: <span id="ts">—</span></footer>
+</div>
+
+<script>
+// ─── Config ───────────────────────────────────────────────────────────
+const REPO    = 'florettich2212-dev/instagram-competitor-dashboard';
+const RAW     = `https://raw.githubusercontent.com/${REPO}/data`;
+const GH_TOKEN = 'PASTE_YOUR_GITHUB_PAT_HERE'; // classic PAT, workflow scope only
+const PASSWORD = 'leonie2024'; // change this to your desired password
+
+// ─── Auth ─────────────────────────────────────────────────────────────
+function doLogin(e) {
+  e.preventDefault();
+  const pw = document.getElementById('pw-input').value;
+  if (pw === PASSWORD) {
+    sessionStorage.setItem('auth', '1');
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    loadData();
+  } else {
+    document.getElementById('login-err').style.display = 'block';
+    document.getElementById('pw-input').value = '';
+    document.getElementById('pw-input').focus();
+  }
+}
+function doLogout() {
+  sessionStorage.removeItem('auth');
+  location.reload();
+}
+if (sessionStorage.getItem('auth') === '1') {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+}
+
+// ─── State ────────────────────────────────────────────────────────────
+let rawData = [], currentSort = 'likes', currentDays = 21, spotlightLimit = 8;
+
+// ─── Helpers ──────────────────────────────────────────────────────────
+const fmt  = n => !n ? '0' : n >= 1e6 ? (n/1e6).toFixed(1)+'M' : n >= 1000 ? (n/1000).toFixed(1)+'K' : ''+n;
+const fmtD = iso => new Date(iso).toLocaleDateString('en-GB', {day:'numeric', month:'short'});
+const ini  = s => (s||'').split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase() || '?';
+const imgUrl = url => url ? `${RAW}/${url}` : '';
+
+function filterData(data, days) {
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - days);
+  return data.map(acc => ({
+    ...acc,
+    posts: (acc.posts || []).filter(p => new Date(p.date) >= cutoff)
+  }));
+}
+
+function sorted(posts) {
+  return [...(posts||[])].sort((a,b) =>
+    currentSort === 'date' ? new Date(b.date) - new Date(a.date) : b[currentSort] - a[currentSort]
+  );
+}
+
+function metricVal(p) {
+  if (currentSort === 'comments') return fmt(p.comments);
+  if (currentSort === 'engagement_rate') return p.engagement_rate + '%';
+  if (currentSort === 'date') return fmtD(p.date);
+  return fmt(p.likes);
+}
+
+// ─── Render ───────────────────────────────────────────────────────────
+function render() {
+  const data = filterData(rawData, currentDays);
+  renderSummary(data);
+  renderSpotlight(data);
+  renderAccounts(data);
+}
+
+function renderSummary(data) {
+  const posts = data.flatMap(a => a.posts || []);
+  document.getElementById('sum-posts').textContent = posts.length;
+  const ers = posts.map(p => p.engagement_rate).filter(Boolean);
+  document.getElementById('sum-er').textContent = ers.length
+    ? (ers.reduce((s,v)=>s+v,0)/ers.length).toFixed(2)+'%' : '—';
+  const best = [...data]
+    .map(a => ({ u: a.username, e: a.posts?.length ? (a.posts.reduce((s,p)=>s+p.engagement_rate,0)/a.posts.length) : 0 }))
+    .sort((a,b) => b.e - a.e)[0];
+  if (best) {
+    document.getElementById('sum-best').textContent = '@' + best.u;
+    document.getElementById('sum-best-sub').textContent = best.e.toFixed(2) + '% avg ER';
+  }
+}
+
+function renderSpotlight(data) {
+  const all = [];
+  data.forEach(a => (a.posts||[]).forEach(p => all.push({...p, _a: a.username})));
+  all.sort((a,b) => currentSort === 'date' ? new Date(b.date)-new Date(a.date) : b[currentSort]-a[currentSort]);
+  const top = all.slice(0, spotlightLimit);
+  const el = document.getElementById('spotlight');
+  if (!top.length) {
+    el.innerHTML = '<p style="grid-column:1/-1;padding:40px;text-align:center;color:var(--text3);font-size:14px">No posts in this window.</p>';
+    return;
+  }
+  el.innerHTML = top.map((p,i) => {
+    const src = imgUrl(p.thumbnail_url);
+    return `<a class="sp-card" href="${p.url}" target="_blank" rel="noopener">
+      ${src ? `<img class="sp-img" src="${src}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">` : ''}
+      <div class="sp-ph" style="display:${src?'none':'flex'}"></div>
+      <div class="sp-overlay">
+        <div class="sp-account">${p._a}</div>
+        <div class="sp-caption">${p.caption||'—'}</div>
+        <div class="sp-stats">
+          <span class="sp-stat">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+            ${fmt(p.likes)}
+          </span>
+          <span class="sp-stat">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            ${fmt(p.comments)}
+          </span>
+          <span class="sp-er">${p.engagement_rate}% ER</span>
+        </div>
+      </div>
+      <div class="sp-rank">${i+1}</div>
+    </a>`;
+  }).join('');
+}
+
+function renderAccounts(data) {
+  const sortedAccounts = [...data].sort((a,b) => {
+    const ap = sorted(a.posts)[0], bp = sorted(b.posts)[0];
+    if (!ap && !bp) return 0; if (!ap) return 1; if (!bp) return -1;
+    return currentSort === 'date' ? new Date(bp.date)-new Date(ap.date) : bp[currentSort]-ap[currentSort];
+  });
+  document.getElementById('accounts').innerHTML = sortedAccounts.map(acc => {
+    const posts = sorted(acc.posts);
+    const avgEr = posts.length ? (posts.reduce((s,p)=>s+p.engagement_rate,0)/posts.length).toFixed(2) : '0';
+    return `<div class="acc-card">
+      <div class="acc-top">
+        <div class="acc-avatar">${ini(acc.full_name||acc.username)}</div>
+        <div class="acc-info">
+          <div class="acc-name">${acc.full_name||acc.username}</div>
+          <div class="acc-handle">@${acc.username}</div>
+        </div>
+        <a class="acc-link" href="https://instagram.com/${acc.username}" target="_blank" rel="noopener">View ↗</a>
+      </div>
+      ${acc.error ? `<div class="err-msg">${acc.error}</div>` : ''}
+      <div class="acc-kpis">
+        <div class="kpi"><div class="kpi-n">${fmt(acc.followers||0)}</div><div class="kpi-l">Followers</div></div>
+        <div class="kpi"><div class="kpi-n">${posts.length}</div><div class="kpi-l">Posts</div></div>
+        <div class="kpi"><div class="kpi-n">${avgEr}%</div><div class="kpi-l">Avg ER</div></div>
+      </div>
+      ${posts.length === 0 ? `<p class="no-posts-msg">No posts in this window.</p>` : `
+      <div class="post-rows">
+        ${posts.slice(0,5).map((p,i) => {
+          const src = imgUrl(p.thumbnail_url);
+          return `<a class="post-item" href="${p.url}" target="_blank" rel="noopener">
+            <span class="post-num ${i===0?'top':''}">${i+1}</span>
+            ${src ? `<img class="post-img" src="${src}" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'post-img-ph'}))">` : `<div class="post-img-ph"></div>`}
+            <span class="post-cap">${p.caption||'—'}</span>
+            <span class="post-badge ${p.is_video?'vid':''}">${p.is_video?'VID':'IMG'}</span>
+            <span class="post-val">${metricVal(p)}</span>
+            <span class="post-dt">${fmtD(p.date)}</span>
+          </a>`;
+        }).join('')}
+      </div>`}
+    </div>`;
+  }).join('');
+}
+
+// ─── Load data ────────────────────────────────────────────────────────
+async function loadData() {
+  try {
+    const r = await fetch(`${RAW}/data.json?t=${Date.now()}`);
+    if (!r.ok) throw new Error('no data');
+    rawData = await r.json();
+    render();
+    const ts = rawData[0]?.fetched_at;
+    document.getElementById('ts').textContent = ts ? new Date(ts).toLocaleString('en-GB') : '—';
+  } catch {
+    document.getElementById('accounts').innerHTML = `
+      <div style="grid-column:1/-1;padding:60px;text-align:center">
+        <p style="font-size:17px;font-weight:600;margin-bottom:8px">No data yet</p>
+        <p style="font-size:14px;color:var(--text3);margin-bottom:20px">Click <strong>Refresh data</strong> to run your first scrape.</p>
+      </div>`;
+    document.getElementById('spotlight').innerHTML = '';
+  }
+}
+
+// ─── Refresh (triggers GitHub Action) ────────────────────────────────
+async function refreshAll() {
+  const btn = document.getElementById('refresh-btn');
+  const banner = document.getElementById('status-banner');
+  const statusText = document.getElementById('status-text');
+
+  btn.disabled = true;
+  banner.style.display = 'flex';
+  statusText.textContent = 'Starting scrape…';
+
+  // Trigger the workflow
+  const triggerRes = await fetch(
+    `https://api.github.com/repos/${REPO}/actions/workflows/scrape.yml/dispatches`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `token ${GH_TOKEN}`,
+        Accept: 'application/vnd.github.v3+json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ ref: 'main' }),
+    }
+  );
+
+  if (!triggerRes.ok) {
+    banner.style.display = 'none';
+    btn.disabled = false;
+    alert('Could not start refresh. Check your GitHub token in the HTML config.');
+    return;
+  }
+
+  // Wait 5 seconds for the run to appear, then poll
+  await new Promise(r => setTimeout(r, 5000));
+
+  const steps = ['Fetching profiles…', 'Scraping posts…', 'Downloading images…', 'Almost done…'];
+  let stepIdx = 0;
+  const stepTimer = setInterval(() => {
+    stepIdx = Math.min(stepIdx + 1, steps.length - 1);
+    statusText.textContent = steps[stepIdx];
+  }, 90000); // advance message every ~90s
+
+  // Poll action status
+  let attempts = 0;
+  while (attempts < 60) { // max 10 min
+    await new Promise(r => setTimeout(r, 10000));
+    attempts++;
+    try {
+      const runsRes = await fetch(
+        `https://api.github.com/repos/${REPO}/actions/runs?per_page=1&event=workflow_dispatch`,
+        { headers: { Authorization: `token ${GH_TOKEN}` } }
+      );
+      const runs = await runsRes.json();
+      const run = runs.workflow_runs?.[0];
+      if (!run) continue;
+      if (run.status === 'completed') {
+        clearInterval(stepTimer);
+        if (run.conclusion === 'success') {
+          statusText.textContent = 'Done! Loading…';
+          await new Promise(r => setTimeout(r, 3000)); // brief wait for data branch to propagate
+          await loadData();
+        } else {
+          alert(`Scrape failed (${run.conclusion}). Check GitHub Actions for details.`);
+        }
+        break;
+      }
+    } catch { /* keep polling */ }
+  }
+
+  clearInterval(stepTimer);
+  banner.style.display = 'none';
+  btn.disabled = false;
+  btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:12px;height:12px"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>Refresh data`;
+}
+
+// ─── Controls ─────────────────────────────────────────────────────────
+function setLimit(n, el) {
+  spotlightLimit = n;
+  document.querySelectorAll('#limit-seg .seg-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  if (rawData.length) renderSpotlight(filterData(rawData, currentDays));
+}
+
+function setSort(k, el) {
+  currentSort = k;
+  document.querySelectorAll('.seg-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  if (rawData.length) render();
+}
+
+function changeDays(v) {
+  currentDays = parseInt(v);
+  if (rawData.length) render();
+}
+
+// ─── Init ─────────────────────────────────────────────────────────────
+if (sessionStorage.getItem('auth') === '1') loadData();
+</script>
+</body>
+</html>
