@@ -114,17 +114,25 @@ def main():
             result[u]["followers"] = p.get("followersCount", 0)
     print(f"  → {len(profiles)} profiles fetched")
 
-    print("Step 2/3: posts …")
-    direct_urls = [f"https://www.instagram.com/{u}/" for u in COMPETITORS]
-    posts_raw = run_apify(
+    print("Step 2/3: posts (batch 1/2) …")
+    batch1 = [f"https://www.instagram.com/{u}/" for u in COMPETITORS[:12]]
+    posts_raw1 = run_apify(
         "apify~instagram-scraper",
-        {
-            "directUrls": direct_urls,
-            "resultsType": "posts",
-            "resultsLimit": 75,
-            "proxy": {"useApifyProxy": True, "apifyProxyGroups": ["RESIDENTIAL"]},
-        },
+        {"directUrls": batch1, "resultsType": "posts", "resultsLimit": 75,
+         "proxy": {"useApifyProxy": True}},
     )
+    print("  batch 1 done — waiting 30s before batch 2 …")
+    time.sleep(30)
+
+    print("Step 2/3: posts (batch 2/2) …")
+    batch2 = [f"https://www.instagram.com/{u}/" for u in COMPETITORS[12:]]
+    posts_raw2 = run_apify(
+        "apify~instagram-scraper",
+        {"directUrls": batch2, "resultsType": "posts", "resultsLimit": 75,
+         "proxy": {"useApifyProxy": True}},
+    )
+    posts_raw = posts_raw1 + posts_raw2
+
     for post in posts_raw:
         if post.get("error"):
             continue
