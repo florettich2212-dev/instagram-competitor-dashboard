@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: instagram-dashboard
+    runtime: python
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: cd backend && gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --threads 4 --timeout 120
+    envVars:
+      - key: APIFY_TOKEN
+        sync: false
+      - key: DASHBOARD_PASSWORD
+        sync: false
+      - key: SECRET_KEY
+        sync: false
