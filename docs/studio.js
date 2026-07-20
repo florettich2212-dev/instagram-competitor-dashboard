@@ -333,7 +333,6 @@ function card(item, kind) {
       <span class="st-type">${item.type}${styleChip}</span>
     </div>
     <div class="st-text${kind === 'caption' ? ' st-text-multi' : ''}">${item.text.replace(/\n/g, '<br>')}</div>
-    <div class="st-why">${item.why}</div>
     <div class="st-actions">
       <button onclick="studioCopy(this,'${enc}')">Copy</button>
       <button onclick="studioFav(this,'${enc}')">☆ Save</button>
