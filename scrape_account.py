@@ -129,6 +129,7 @@ def main():
             "date":             ts,
             "likes":            likes,
             "comments":         comments,
+            "views":            post.get("videoPlayCount") or post.get("videoViewCount") or 0,
             "engagement":       likes + comments,
             "engagement_rate":  er,
             "caption":          (post.get("caption") or "")[:280],

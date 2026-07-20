@@ -28,8 +28,8 @@ function classifyHook(text) {
 }
 
 // ─── Corpus analysis ──────────────────────────────────────────────────
-function getPosts(mode, evergreenDays) {
-  const days = mode === 'recent' ? 21 : evergreenDays;
+function getPosts(mode) {
+  const days = mode === 'recent' ? 21 : null; // Trending = 21 days, Proven Concepts = all time
   const cutoff = new Date();
   if (days) cutoff.setDate(cutoff.getDate() - days);
   const posts = [];
@@ -39,13 +39,16 @@ function getPosts(mode, evergreenDays) {
   return posts;
 }
 
-function analyze(mode, evergreenDays) {
-  const posts = getPosts(mode, evergreenDays);
+// Winner score = views + likes (views only exist for Reels; 0 until first scrape with views)
+const score = p => (p.views || 0) + (p.likes || 0);
+
+function analyze(mode) {
+  const posts = getPosts(mode);
   if (!posts.length) return null;
 
-  // Top quartile by engagement rate = "winners"
-  const byEr = [...posts].sort((a, b) => b.engagement_rate - a.engagement_rate);
-  const winners = byEr.slice(0, Math.max(8, Math.ceil(byEr.length / 4)));
+  // Top quartile by views + likes = "winners"
+  const ranked = [...posts].sort((a, b) => score(b) - score(a));
+  const winners = ranked.slice(0, Math.max(8, Math.ceil(ranked.length / 4)));
 
   // Keyword frequency from winner captions
   const freq = {};
@@ -73,9 +76,12 @@ function analyze(mode, evergreenDays) {
     emojiRate: emojiPosts / winners.length,
     videoShare,
     topAccounts: [...new Set(winners.slice(0, 10).map(p => '@' + p._a))].slice(0, 4),
-    avgEr: (winners.reduce((s, p) => s + p.engagement_rate, 0) / winners.length).toFixed(2),
+    avgLikes: Math.round(winners.reduce((s, p) => s + (p.likes || 0), 0) / winners.length),
+    avgViews: Math.round(winners.reduce((s, p) => s + (p.views || 0), 0) / winners.length),
   };
 }
+
+const fmtN = n => !n ? '0' : n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1000 ? (n / 1000).toFixed(1) + 'K' : '' + n;
 
 // ─── Base vocabulary (blended with mined keywords, style can override) ─
 const ROOMS  = ['living room', 'bedroom', 'kitchen', 'hallway', 'bathroom', 'home office', 'balcony', 'dining nook', 'reading corner'];
@@ -218,8 +224,9 @@ const CAPTION_BODIES = [
 // ─── Generation ───────────────────────────────────────────────────────
 function why(item, a) {
   const inTop = a.topHooks.slice(0, 3).includes(item.type);
+  const reach = a.avgViews ? `avg ${fmtN(a.avgViews)} views · ${fmtN(a.avgLikes)} likes` : `avg ${fmtN(a.avgLikes)} likes`;
   const kwNote = a.keywords.length ? `Trending words in winning captions: ${a.keywords.slice(0, 4).map(k => `"${k}"`).join(', ')}.` : '';
-  return `${item.type} hooks ${inTop ? 'are among the top-performing patterns' : 'appear'} in the ${a.winners.length} best posts analyzed (avg ${a.avgEr}% ER, led by ${a.topAccounts.join(', ')}). ${kwNote}`;
+  return `${item.type} hooks ${inTop ? 'are among the top-performing patterns' : 'appear'} in the ${a.winners.length} best posts analyzed (${reach}, led by ${a.topAccounts.join(', ')}). ${kwNote}`;
 }
 
 function adjustPotential(item, a) {
@@ -328,23 +335,26 @@ function card(item, kind) {
 
 window.studioRun = (kind) => {
   const mode = document.querySelector('.st-src-btn.active')?.dataset.src || 'recent';
-  const days = parseInt(document.getElementById('st-window').value);
-  window._studioAnalysis = analyze(mode, mode === 'recent' ? null : days);
+  window._studioAnalysis = analyze(mode);
   const target = document.getElementById(`st-out-${kind}`);
   if (!window._studioAnalysis) {
-    target.innerHTML = '<p class="st-empty">Not enough competitor data in this window. Try a longer timeframe or refresh the data.</p>';
+    target.innerHTML = '<p class="st-empty">Not enough competitor data yet. Refresh the data and try again.</p>';
     return;
   }
   const a = window._studioAnalysis;
+  const reach = a.avgViews ? `<strong>${fmtN(a.avgViews)} views · ${fmtN(a.avgLikes)} likes</strong>` : `<strong>${fmtN(a.avgLikes)} likes</strong>`;
   document.getElementById('st-insight').innerHTML =
-    `Analyzed <strong>${a.posts} posts</strong> (${mode === 'recent' ? 'last 21 days' : days ? `last ${days} days` : 'all time'}) · top pattern: <strong>${a.topHooks[0] || '—'}</strong> · winners avg <strong>${a.avgEr}% ER</strong> · ${Math.round(a.videoShare * 100)}% of winners are Reels · emoji used in ${Math.round(a.emojiRate * 100)}% of top captions`;
+    `Analyzed <strong>${a.posts} posts</strong> (${mode === 'recent' ? 'trending — last 21 days' : 'proven concepts — all time'}) · top pattern: <strong>${a.topHooks[0] || '—'}</strong> · winners avg ${reach} · ${Math.round(a.videoShare * 100)}% of winners are Reels · emoji used in ${Math.round(a.emojiRate * 100)}% of top captions`;
   target.innerHTML = generate(kind).map(i => card(i, kind)).join('');
 };
 
 window.studioSetSrc = (btn) => {
   document.querySelectorAll('.st-src-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
-  document.getElementById('st-window-wrap').style.display = btn.dataset.src === 'evergreen' ? 'inline-flex' : 'none';
+  // Re-generate any sections that already have output
+  ['reel', 'slide', 'caption'].forEach(kind => {
+    if (document.querySelector(`#st-out-${kind} .st-card`)) window.studioRun(kind);
+  });
 };
 
 window.studioSetStyle = (btn) => {

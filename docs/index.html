@@ -396,18 +396,9 @@
     <div class="st-controls">
       <span class="ctrl-label">Source</span>
       <div class="st-src">
-        <button class="st-src-btn active" data-src="recent" onclick="studioSetSrc(this)">Recent Trends</button>
-        <button class="st-src-btn" data-src="evergreen" onclick="studioSetSrc(this)">Evergreen Winners</button>
+        <button class="st-src-btn active" data-src="recent" onclick="studioSetSrc(this)">Trending</button>
+        <button class="st-src-btn" data-src="proven" onclick="studioSetSrc(this)">Proven Concepts</button>
       </div>
-      <span id="st-window-wrap" style="display:none;align-items:center;gap:8px">
-        <span class="ctrl-label">Timeframe</span>
-        <select class="pill-select" id="st-window">
-          <option value="90">Last 90 days</option>
-          <option value="180">Last 6 months</option>
-          <option value="365">Last 12 months</option>
-          <option value="0">All time</option>
-        </select>
-      </span>
       <label class="st-check"><input type="checkbox" id="st-hashtags" checked> Include hashtags (captions)</label>
       <button class="st-export" onclick="studioExport()">Export favorites ↓</button>
     </div>
