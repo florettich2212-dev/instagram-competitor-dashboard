@@ -228,70 +228,88 @@
 
     /* ─── Content Studio ─── */
     #studio-view { display: none; }
-    .st-hero { padding: 48px 40px 0; }
-    .st-hero h2 { font-size: 28px; font-weight: 700; letter-spacing: -0.02em; }
-    .st-hero p { font-size: 14px; color: var(--text2); margin-top: 6px; max-width: 620px; }
-    .st-controls {
-      margin: 24px 40px 0; padding: 16px 20px; background: var(--surface);
-      border-radius: 14px; display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
+    .st-hero { padding: 64px 40px 0; }
+    .st-eyebrow { font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text3); margin-bottom: 10px; }
+    .st-hero h2 { font-size: 40px; font-weight: 700; letter-spacing: -0.03em; line-height: 1.05; }
+    .st-hero p { font-size: 15px; color: var(--text2); margin-top: 12px; max-width: 620px; line-height: 1.5; }
+
+    .st-panel {
+      margin: 28px 40px 0; background: var(--surface); border-radius: 18px;
+      border: 1px solid var(--border); box-shadow: 0 1px 3px rgba(0,0,0,0.04);
     }
-    .st-src { display: inline-flex; background: rgba(0,0,0,0.05); border-radius: 8px; padding: 2px; }
+    .st-panel-row { display: flex; align-items: center; gap: 16px; padding: 14px 22px; flex-wrap: wrap; }
+    .st-panel-div { height: 1px; background: var(--border); margin: 0 22px; }
+    .st-lbl { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text3); min-width: 52px; }
+
+    .st-src { display: inline-flex; background: rgba(0,0,0,0.05); border-radius: 9px; padding: 2px; }
     .st-src-btn {
-      font-family: inherit; font-size: 12px; padding: 5px 14px; border-radius: 6px;
-      border: none; background: none; color: var(--text2); cursor: pointer;
+      font-family: inherit; font-size: 13px; padding: 6px 16px; border-radius: 7px;
+      border: none; background: none; color: var(--text2); cursor: pointer; transition: all 0.2s;
     }
-    .st-src-btn.active { background: var(--surface); color: var(--text); font-weight: 500; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-    .st-check { font-size: 12px; color: var(--text2); display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+    .st-src-btn.active { background: var(--surface); color: var(--text); font-weight: 500; box-shadow: 0 1px 4px rgba(0,0,0,0.12); }
+
+    .st-check { font-size: 13px; color: var(--text2); display: inline-flex; align-items: center; gap: 7px; cursor: pointer; }
+    .st-check input { accent-color: #0071e3; }
     .st-export {
-      margin-left: auto; font-size: 12px; color: var(--text2); background: none;
-      border: 1px solid var(--border2); border-radius: 16px; padding: 5px 14px;
-      cursor: pointer; font-family: inherit; transition: all 0.15s;
+      margin-left: auto; font-size: 13px; color: #0071e3; background: none;
+      border: none; padding: 6px 4px; cursor: pointer; font-family: inherit;
     }
-    .st-export:hover { background: var(--text); color: #fff; border-color: var(--text); }
+    .st-export:hover { text-decoration: underline; }
+
+    .st-styles { display: flex; gap: 8px; flex-wrap: wrap; }
+    .st-style-btn {
+      font-family: inherit; font-size: 12px; padding: 7px 15px; border-radius: 980px;
+      border: none; background: rgba(0,0,0,0.045); color: var(--text2);
+      cursor: pointer; transition: all 0.2s;
+    }
+    .st-style-btn:hover { background: rgba(0,0,0,0.09); color: var(--text); }
+    .st-style-btn.active { background: var(--text); color: #fff; font-weight: 500; }
+    .st-style-desc { font-size: 12px; color: var(--text3); flex-basis: 100%; padding-left: 68px; margin-top: -4px; padding-bottom: 2px; }
+
     #st-insight {
-      margin: 16px 40px 0; font-size: 12px; color: var(--text2);
-      padding: 10px 16px; background: #f0f4ff; border-radius: 10px; line-height: 1.5;
+      margin: 20px 40px 0; font-size: 13px; color: var(--text2); line-height: 1.6;
+      padding: 14px 22px; background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
     }
     #st-insight:empty { display: none; }
-    .st-section { padding: 36px 40px 0; }
-    .st-section:last-of-type { padding-bottom: 56px; }
-    .st-section-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
-    .st-section-head h3 { font-size: 18px; font-weight: 600; letter-spacing: -0.01em; }
-    .st-section-head p { font-size: 12px; color: var(--text3); margin-top: 2px; }
+    #st-insight strong { color: var(--text); font-weight: 600; }
+
+    .st-section { padding: 48px 40px 0; }
+    .st-section:last-of-type { padding-bottom: 72px; }
+    .st-section-head { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 18px; }
+    .st-section-head h3 { font-size: 22px; font-weight: 600; letter-spacing: -0.02em; }
+    .st-section-head p { font-size: 13px; color: var(--text3); margin-top: 3px; }
     .st-gen-btn {
-      font-family: inherit; font-size: 13px; font-weight: 600; color: #fff;
-      background: #1d1d1f; border: none; border-radius: 20px; padding: 9px 20px;
-      cursor: pointer; transition: opacity 0.15s;
+      font-family: inherit; font-size: 14px; font-weight: 500; color: #fff;
+      background: #0071e3; border: none; border-radius: 980px; padding: 9px 22px;
+      cursor: pointer; transition: background 0.2s;
     }
-    .st-gen-btn:hover { opacity: 0.82; }
-    .st-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; }
-    .st-card { background: var(--surface); border-radius: 14px; padding: 18px 20px; display: flex; flex-direction: column; gap: 10px; }
+    .st-gen-btn:hover { background: #0077ed; }
+    .st-gen-btn:active { background: #006edb; }
+
+    .st-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 16px; }
+    .st-card {
+      background: var(--surface); border-radius: 18px; padding: 20px 22px;
+      display: flex; flex-direction: column; gap: 12px;
+      border: 1px solid var(--border); box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+      transition: transform 0.25s ease, box-shadow 0.25s ease;
+      animation: stIn 0.45s cubic-bezier(0.25,0.46,0.45,0.94) both;
+    }
+    .st-card:hover { transform: translateY(-3px); box-shadow: 0 10px 30px rgba(0,0,0,0.09); }
+    .st-card:nth-child(1){animation-delay:.02s}.st-card:nth-child(2){animation-delay:.06s}.st-card:nth-child(3){animation-delay:.1s}.st-card:nth-child(4){animation-delay:.14s}.st-card:nth-child(5){animation-delay:.18s}.st-card:nth-child(6){animation-delay:.22s}.st-card:nth-child(7){animation-delay:.26s}
+    @keyframes stIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     .st-card-head { display: flex; align-items: center; gap: 8px; }
-    .st-pot { font-size: 10px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; padding: 3px 8px; border-radius: 12px; border: 1px solid; }
-    .st-type { font-size: 11px; color: var(--text3); }
-    .st-text { font-size: 15px; font-weight: 500; line-height: 1.45; letter-spacing: -0.01em; }
-    .st-text-multi { font-size: 13px; font-weight: 400; color: var(--text); white-space: normal; }
-    .st-why { font-size: 11px; color: var(--text3); line-height: 1.5; border-top: 1px solid var(--border); padding-top: 10px; }
+    .st-pot { font-size: 10px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; padding: 4px 10px; border-radius: 980px; }
+    .st-type { font-size: 12px; color: var(--text3); }
+    .st-text { font-size: 16px; font-weight: 500; line-height: 1.4; letter-spacing: -0.015em; }
+    .st-text-multi { font-size: 13px; font-weight: 400; color: var(--text); line-height: 1.55; }
+    .st-why { font-size: 11px; color: var(--text3); line-height: 1.55; border-top: 1px solid var(--border); padding-top: 12px; }
     .st-actions { display: flex; gap: 8px; }
     .st-actions button {
-      font-family: inherit; font-size: 11px; color: var(--text2); background: var(--bg);
-      border: none; border-radius: 8px; padding: 6px 12px; cursor: pointer; transition: all 0.15s;
+      font-family: inherit; font-size: 12px; color: var(--text); background: rgba(0,0,0,0.045);
+      border: none; border-radius: 980px; padding: 7px 15px; cursor: pointer; transition: background 0.2s;
     }
-    .st-actions button:hover { background: var(--text); color: #fff; }
-    .st-empty { grid-column: 1/-1; padding: 32px; text-align: center; color: var(--text3); font-size: 13px; }
-    .st-style-bar {
-      margin: 12px 40px 0; padding: 14px 20px; background: var(--surface);
-      border-radius: 14px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
-    }
-    .st-styles { display: flex; gap: 6px; flex-wrap: wrap; }
-    .st-style-btn {
-      font-family: inherit; font-size: 12px; padding: 6px 13px; border-radius: 16px;
-      border: 1px solid var(--border2); background: none; color: var(--text2);
-      cursor: pointer; transition: all 0.15s;
-    }
-    .st-style-btn:hover { border-color: var(--text); color: var(--text); }
-    .st-style-btn.active { background: var(--text); color: #fff; border-color: var(--text); font-weight: 500; }
-    .st-style-desc { font-size: 11px; color: var(--text3); flex-basis: 100%; }
+    .st-actions button:hover { background: rgba(0,0,0,0.09); }
+    .st-empty { grid-column: 1/-1; padding: 40px; text-align: center; color: var(--text3); font-size: 13px; }
   </style>
 </head>
 <body>
@@ -389,24 +407,27 @@
   <!-- ─── Content Studio ─── -->
   <div id="studio-view">
     <div class="st-hero">
+      <div class="st-eyebrow">Competitor Intelligence</div>
       <h2>Content Studio</h2>
       <p>Hooks and captions generated from what's actually performing across your 24 tracked competitors — proven patterns, original wording.</p>
     </div>
 
-    <div class="st-controls">
-      <span class="ctrl-label">Source</span>
-      <div class="st-src">
-        <button class="st-src-btn active" data-src="recent" onclick="studioSetSrc(this)">Trending</button>
-        <button class="st-src-btn" data-src="proven" onclick="studioSetSrc(this)">Proven Concepts</button>
+    <div class="st-panel">
+      <div class="st-panel-row">
+        <span class="st-lbl">Source</span>
+        <div class="st-src">
+          <button class="st-src-btn active" data-src="recent" onclick="studioSetSrc(this)">Trending</button>
+          <button class="st-src-btn" data-src="proven" onclick="studioSetSrc(this)">Proven Concepts</button>
+        </div>
+        <label class="st-check"><input type="checkbox" id="st-hashtags" checked> Include hashtags</label>
+        <button class="st-export" onclick="studioExport()">Export favorites</button>
       </div>
-      <label class="st-check"><input type="checkbox" id="st-hashtags" checked> Include hashtags (captions)</label>
-      <button class="st-export" onclick="studioExport()">Export favorites ↓</button>
-    </div>
-
-    <div class="st-style-bar">
-      <span class="ctrl-label">Style</span>
-      <div id="st-styles" class="st-styles"></div>
-      <span id="st-style-desc" class="st-style-desc"></span>
+      <div class="st-panel-div"></div>
+      <div class="st-panel-row">
+        <span class="st-lbl">Style</span>
+        <div id="st-styles" class="st-styles"></div>
+        <span id="st-style-desc" class="st-style-desc"></span>
+      </div>
     </div>
 
     <div id="st-insight"></div>
