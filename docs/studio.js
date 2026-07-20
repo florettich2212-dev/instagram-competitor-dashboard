@@ -249,11 +249,11 @@ function styleBank(bank, kind) {
   let b = [...bank, ...(st.extraHooks || [])];
   if (st.banTypes) b = b.filter(t => !st.banTypes.includes(t.type));
   const shuffled = b.sort(() => Math.random() - 0.5);
-  if (!st.preferTypes) return shuffled.slice(0, 7);
-  // ~5 preferred + 2 wildcards so preferred patterns dominate without being monotone
+  if (!st.preferTypes) return shuffled.slice(0, 4);
+  // ~3 preferred + 1 wildcard so preferred patterns dominate without being monotone
   const pref = shuffled.filter(t => st.preferTypes.includes(t.type));
   const rest = shuffled.filter(t => !st.preferTypes.includes(t.type));
-  return [...pref.slice(0, 5), ...rest.slice(0, 7 - Math.min(5, pref.length))];
+  return [...pref.slice(0, 3), ...rest.slice(0, 4 - Math.min(3, pref.length))];
 }
 
 function styleHookText(text) {
@@ -284,7 +284,7 @@ function generate(kind) {
   const bodies = st.bodies || CAPTION_BODIES;
   const ctas = st.ctas || CTAS;
   const hookPool = styleBank(REEL_TEMPLATES, 'reel').filter(t => t.pot !== 'Experimental');
-  return Array.from({ length: 5 }, () => {
+  return Array.from({ length: 4 }, () => {
     const hookTpl = pick(hookPool.length ? hookPool : REEL_TEMPLATES);
     const hook = styleHookText(hookTpl.t(a));
     let body = pick(bodies)(a);
