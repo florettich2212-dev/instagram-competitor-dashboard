@@ -230,13 +230,6 @@ const CAPTION_BODIES = [
 ];
 
 // ─── Generation ───────────────────────────────────────────────────────
-function why(item, a) {
-  const inTop = a.topHooks.slice(0, 3).includes(item.type);
-  const reach = a.avgViews ? `avg ${fmtN(a.avgViews)} views · ${fmtN(a.avgLikes)} likes` : `avg ${fmtN(a.avgLikes)} likes`;
-  const kwNote = a.keywords.length ? `Trending words in winning captions: ${a.keywords.slice(0, 4).map(k => `"${k}"`).join(', ')}.` : '';
-  return `${item.type} hooks ${inTop ? 'are among the top-performing patterns' : 'appear'} in the ${a.winners.length} best posts analyzed (${reach}, led by ${a.topAccounts.join(', ')}). ${kwNote}`;
-}
-
 function adjustPotential(item, a) {
   const rank = a.topHooks.indexOf(item.type);
   if (rank === 0) return 'High';
@@ -265,6 +258,30 @@ function styleHookText(text) {
   return t;
 }
 
+// Real 1:1 competitor captions from the top viral posts of the window
+function viralOriginals(a, kind) {
+  return a.winners
+    .filter(p => (p.caption || '').trim().length > 15)
+    .filter(p => kind === 'reel' ? p.is_video : kind === 'slide' ? !p.is_video : true)
+    .slice(0, 5); // winners are already sorted by views+likes
+}
+
+function withOriginal(items, a, kind) {
+  const candidates = viralOriginals(a, kind);
+  if (!candidates.length || Math.random() > 0.75) return items;
+  const p = pick(candidates);
+  const cap = (p.caption || '').trim();
+  let text = kind === 'caption' ? cap : cap.split('\n')[0].trim();
+  if (kind !== 'caption' && text.length > 120) text = text.slice(0, 120).replace(/\s+\S*$/, '') + '…';
+  const original = {
+    text,
+    type: classifyHook(cap).label,
+    pot: 'High',
+    original: { account: p._a, likes: p.likes || 0, views: p.views || 0, url: p.url },
+  };
+  return [original, ...items.slice(0, 3)];
+}
+
 function generate(kind) {
   const a = window._studioAnalysis;
   if (!a) return [];
@@ -272,19 +289,18 @@ function generate(kind) {
   const bank = kind === 'reel' ? REEL_TEMPLATES : kind === 'slide' ? SLIDE_TEMPLATES : null;
 
   if (bank) {
-    return styleBank(bank, kind).map(tpl => ({
+    return withOriginal(styleBank(bank, kind).map(tpl => ({
       text: styleHookText(tpl.t(a)),
       type: tpl.type,
       pot: adjustPotential(tpl, a),
-      why: why(tpl, a),
-    }));
+    })), a, kind);
   }
 
   // Captions
   const bodies = st.bodies || CAPTION_BODIES;
   const ctas = st.ctas || CTAS;
   const hookPool = styleBank(REEL_TEMPLATES, 'reel').filter(t => t.pot !== 'Experimental');
-  return Array.from({ length: 4 }, () => {
+  const items = Array.from({ length: 4 }, () => {
     const hookTpl = pick(hookPool.length ? hookPool : REEL_TEMPLATES);
     const hook = styleHookText(hookTpl.t(a));
     let body = pick(bodies)(a);
@@ -295,8 +311,9 @@ function generate(kind) {
     const tags = document.getElementById('st-hashtags').checked
       ? '\n\n' + [...HASHTAG_POOL].sort(() => Math.random() - 0.5).slice(0, tagCount).join(' ') : '';
     const text = `${useEmoji ? '✨ ' : ''}${hook}\n\n${body}\n\n${cta}${tags}`;
-    return { text, type: hookTpl.type, pot: adjustPotential(hookTpl, a), why: why(hookTpl, a) };
+    return { text, type: hookTpl.type, pot: adjustPotential(hookTpl, a) };
   });
+  return withOriginal(items, a, 'caption');
 }
 
 // ─── Favorites / export ───────────────────────────────────────────────
@@ -324,18 +341,29 @@ window.studioExport = () => {
 // ─── UI ───────────────────────────────────────────────────────────────
 const POT_COLORS = { High: '#34c759', Medium: '#ff9500', Experimental: '#af52de' };
 
+const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
 function card(item, kind) {
-  const enc = encodeURIComponent(item.text);
-  const styleChip = currentStyle !== 'default' ? ` · ${S().label}` : '';
-  return `<div class="st-card st-glass">
+  const enc = encodeURIComponent(item.text).replace(/'/g, '%27'); // %27: raw ' would break the onclick attr
+  const o = item.original;
+  const styleChip = currentStyle !== 'default' && !o ? ` · ${S().label}` : '';
+  const badge = o
+    ? `<span class="st-pot st-pot-viral">Viral Original</span>`
+    : `<span class="st-pot" style="color:${POT_COLORS[item.pot]};background:${POT_COLORS[item.pot]}12">${item.pot}</span>`;
+  const typeLine = o
+    ? `1:1 from @${o.account} · ${o.views ? fmtN(o.views) + ' views · ' : ''}${fmtN(o.likes)} likes`
+    : `${item.type}${styleChip}`;
+  const viewBtn = o ? `<a class="st-linkbtn" href="${o.url}" target="_blank" rel="noopener">View post ↗</a>` : '';
+  return `<div class="st-card st-glass${o ? ' st-viral' : ''}">
     <div class="st-card-head">
-      <span class="st-pot" style="color:${POT_COLORS[item.pot]};border-color:${POT_COLORS[item.pot]}40;background:${POT_COLORS[item.pot]}12">${item.pot}</span>
-      <span class="st-type">${item.type}${styleChip}</span>
+      ${badge}
+      <span class="st-type">${esc(typeLine)}</span>
     </div>
-    <div class="st-text${kind === 'caption' ? ' st-text-multi' : ''}">${item.text.replace(/\n/g, '<br>')}</div>
+    <div class="st-text${kind === 'caption' ? ' st-text-multi' : ''}">${esc(item.text).replace(/\n/g, '<br>')}</div>
     <div class="st-actions">
       <button onclick="studioCopy(this,'${enc}')">Copy</button>
       <button onclick="studioFav(this,'${enc}')">☆ Save</button>
+      ${viewBtn}
     </div>
   </div>`;
 }
