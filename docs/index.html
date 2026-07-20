@@ -467,6 +467,11 @@
           <button class="st-src-btn active" data-src="recent" onclick="studioSetSrc(this)">Trending</button>
           <button class="st-src-btn" data-src="proven" onclick="studioSetSrc(this)">Proven Concepts</button>
         </div>
+        <span class="st-lbl" style="min-width:auto">Output</span>
+        <div class="st-src" id="st-out-mode">
+          <button class="st-src-btn active" data-out="mixed" onclick="studioSetOut(this)">Mixed</button>
+          <button class="st-src-btn" data-out="originals" onclick="studioSetOut(this)">1:1 Originals</button>
+        </div>
         <label class="st-check"><input type="checkbox" id="st-hashtags" checked> Include hashtags</label>
         <button class="st-export" onclick="studioExport()">Export favorites</button>
       </div>
@@ -821,6 +826,6 @@ function changeDays(v) {
 // ─── Init ─────────────────────────────────────────────────────────────
 if (sessionStorage.getItem('auth') === '1') loadData();
 </script>
-<script src="studio.js?v=10"></script>
+<script src="studio.js?v=11"></script>
 </body>
 </html>

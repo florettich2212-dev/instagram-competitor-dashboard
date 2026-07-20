@@ -259,32 +259,42 @@ function styleHookText(text) {
 }
 
 // Real 1:1 competitor captions from the top viral posts of the window
-function viralOriginals(a, kind) {
+let outputMode = 'mixed';
+
+function viralOriginals(a, kind, count) {
   return a.winners
     .filter(p => (p.caption || '').trim().length > 15)
     .filter(p => kind === 'reel' ? p.is_video : kind === 'slide' ? !p.is_video : true)
-    .slice(0, 5); // winners are already sorted by views+likes
+    .slice(0, count); // winners are already sorted by views+likes
 }
 
-function withOriginal(items, a, kind) {
-  const candidates = viralOriginals(a, kind);
-  if (!candidates.length || Math.random() > 0.75) return items;
-  const p = pick(candidates);
+function makeOriginal(p, kind) {
   const cap = (p.caption || '').trim();
   let text = kind === 'caption' ? cap : cap.split('\n')[0].trim();
   if (kind !== 'caption' && text.length > 120) text = text.slice(0, 120).replace(/\s+\S*$/, '') + '…';
-  const original = {
+  return {
     text,
     type: classifyHook(cap).label,
     pot: 'High',
     original: { account: p._a, likes: p.likes || 0, views: p.views || 0, url: p.url },
   };
-  return [original, ...items.slice(0, 3)];
+}
+
+function withOriginal(items, a, kind) {
+  const candidates = viralOriginals(a, kind, 5);
+  if (!candidates.length || Math.random() > 0.75) return items;
+  return [makeOriginal(pick(candidates), kind), ...items.slice(0, 3)];
 }
 
 function generate(kind) {
   const a = window._studioAnalysis;
   if (!a) return [];
+
+  // 1:1 Originals mode — exact viral competitor captions only
+  if (outputMode === 'originals') {
+    return viralOriginals(a, kind, 4).map(p => makeOriginal(p, kind));
+  }
+
   const st = S();
   const bank = kind === 'reel' ? REEL_TEMPLATES : kind === 'slide' ? SLIDE_TEMPLATES : null;
 
@@ -380,16 +390,27 @@ window.studioRun = (kind) => {
   const reach = a.avgViews ? `<strong>${fmtN(a.avgViews)} views · ${fmtN(a.avgLikes)} likes</strong>` : `<strong>${fmtN(a.avgLikes)} likes</strong>`;
   document.getElementById('st-insight').innerHTML =
     `Analyzed <strong>${a.posts} posts</strong> (${mode === 'recent' ? 'trending — last 21 days' : 'proven concepts — all time'}) · top pattern: <strong>${a.topHooks[0] || '—'}</strong> · winners avg ${reach} · ${Math.round(a.videoShare * 100)}% of winners are Reels · emoji used in ${Math.round(a.emojiRate * 100)}% of top captions`;
-  target.innerHTML = generate(kind).map(i => card(i, kind)).join('');
+  const items = generate(kind);
+  target.innerHTML = items.length
+    ? items.map(i => card(i, kind)).join('')
+    : '<p class="st-empty">No 1:1 originals found for this format in the current window.</p>';
 };
 
+const rerunActive = () => ['reel', 'slide', 'caption'].forEach(kind => {
+  if (document.querySelector(`#st-out-${kind} .st-card, #st-out-${kind} .st-empty`)) window.studioRun(kind);
+});
+
 window.studioSetSrc = (btn) => {
-  document.querySelectorAll('.st-src-btn').forEach(b => b.classList.remove('active'));
+  btn.parentElement.querySelectorAll('.st-src-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
-  // Re-generate any sections that already have output
-  ['reel', 'slide', 'caption'].forEach(kind => {
-    if (document.querySelector(`#st-out-${kind} .st-card`)) window.studioRun(kind);
-  });
+  rerunActive();
+};
+
+window.studioSetOut = (btn) => {
+  outputMode = btn.dataset.out;
+  btn.parentElement.querySelectorAll('.st-src-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  rerunActive();
 };
 
 window.studioSetStyle = (btn) => {
