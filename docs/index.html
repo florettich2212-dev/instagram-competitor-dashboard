@@ -279,6 +279,19 @@
     }
     .st-actions button:hover { background: var(--text); color: #fff; }
     .st-empty { grid-column: 1/-1; padding: 32px; text-align: center; color: var(--text3); font-size: 13px; }
+    .st-style-bar {
+      margin: 12px 40px 0; padding: 14px 20px; background: var(--surface);
+      border-radius: 14px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+    }
+    .st-styles { display: flex; gap: 6px; flex-wrap: wrap; }
+    .st-style-btn {
+      font-family: inherit; font-size: 12px; padding: 6px 13px; border-radius: 16px;
+      border: 1px solid var(--border2); background: none; color: var(--text2);
+      cursor: pointer; transition: all 0.15s;
+    }
+    .st-style-btn:hover { border-color: var(--text); color: var(--text); }
+    .st-style-btn.active { background: var(--text); color: #fff; border-color: var(--text); font-weight: 500; }
+    .st-style-desc { font-size: 11px; color: var(--text3); flex-basis: 100%; }
   </style>
 </head>
 <body>
@@ -397,6 +410,12 @@
       </span>
       <label class="st-check"><input type="checkbox" id="st-hashtags" checked> Include hashtags (captions)</label>
       <button class="st-export" onclick="studioExport()">Export favorites ↓</button>
+    </div>
+
+    <div class="st-style-bar">
+      <span class="ctrl-label">Style</span>
+      <div id="st-styles" class="st-styles"></div>
+      <span id="st-style-desc" class="st-style-desc"></span>
     </div>
 
     <div id="st-insight"></div>

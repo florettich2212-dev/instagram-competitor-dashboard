@@ -77,48 +77,21 @@ function analyze(mode, evergreenDays) {
   };
 }
 
-// ─── Vocabulary for the niche (blended with mined keywords) ──────────
+// ─── Base vocabulary (blended with mined keywords, style can override) ─
 const ROOMS  = ['living room', 'bedroom', 'kitchen', 'hallway', 'bathroom', 'home office', 'balcony', 'dining nook', 'reading corner'];
 const ADJ    = ['cozy', 'calm', 'warm-minimal', 'moody', 'timeless', 'organic modern', 'quiet-luxury', 'scandi', 'japandi', 'lived-in'];
 const THINGS = ['lighting', 'curtains', 'a vintage find', 'textured walls', 'layered textiles', 'a statement lamp', 'wall paneling', 'fresh flowers', 'open shelving', 'a rug that fits'];
 const NUMS   = [3, 4, 5, 6, 7];
 
 const pick = arr => arr[Math.floor(Math.random() * arr.length)];
-const pickKw = a => (a.keywords.length > 2 ? pick(a.keywords.slice(0, 12)) : pick(ROOMS));
+const S = () => STYLES[currentStyle];
+const room  = () => pick(S().rooms  || ROOMS);
+const adj   = () => pick(S().adj    || ADJ);
+const thing = () => pick(S().things || THINGS);
+const num   = () => pick(NUMS);
+const pickKw = a => (a.keywords.length > 2 ? pick(a.keywords.slice(0, 12)) : room());
 
-// ─── Template banks ───────────────────────────────────────────────────
-// Each: { t: template fn, type: hook-type label, pot: base potential }
-const REEL_TEMPLATES = [
-  { type: 'Curiosity',    pot: 'High', t: a => `The one thing that made our ${pick(ROOMS)} finally feel finished` },
-  { type: 'Curiosity',    pot: 'High', t: a => `Nobody talks about this when styling a ${pick(ROOMS)}…` },
-  { type: 'Curiosity',    pot: 'Medium', t: a => `Why your ${pick(ROOMS)} feels off — and it's not the furniture` },
-  { type: 'List',         pot: 'High', t: a => `${pick(NUMS)} ${pick(ADJ)} details that instantly upgrade any ${pick(ROOMS)}` },
-  { type: 'List',         pot: 'High', t: a => `${pick(NUMS)} things I'd never buy again for our home` },
-  { type: 'Mistake',      pot: 'High', t: a => `Stop doing this in your ${pick(ROOMS)} (it makes it look smaller)` },
-  { type: 'Mistake',      pot: 'Medium', t: a => `The ${pickKw(a)} mistake almost everyone makes` },
-  { type: 'Before/After', pot: 'High', t: a => `We gave our ${pick(ROOMS)} a weekend makeover — watch till the end` },
-  { type: 'Before/After', pot: 'High', t: a => `POV: the landlord said "no changes" — we did this instead` },
-  { type: 'Secret',       pot: 'Medium', t: a => `The most underrated ${pickKw(a)} trick in interior design` },
-  { type: 'Secret',       pot: 'Medium', t: a => `IKEA won't tell you this, but…` },
-  { type: 'How-to',       pot: 'Medium', t: a => `How we made our ${pick(ROOMS)} look expensive with ${pick(THINGS)}` },
-  { type: 'Budget',       pot: 'High', t: a => `This cost us under 50€ and changed the whole ${pick(ROOMS)}` },
-  { type: 'POV/Relatable', pot: 'Medium', t: a => `POV: you finally found your interior style after ${pick(NUMS)} tries` },
-  { type: 'Aesthetic/Mood', pot: 'Experimental', t: a => `A ${pick(ADJ)} morning in our ${pick(ROOMS)} — sound on` },
-];
-
-const SLIDE_TEMPLATES = [
-  { type: 'List',         pot: 'High', t: a => `${pick(NUMS)} ${pickKw(a)} ideas you'll want to save →` },
-  { type: 'List',         pot: 'High', t: a => `${pick(NUMS)} ways to make a ${pick(ROOMS)} feel ${pick(ADJ)} (swipe)` },
-  { type: 'Mistake',      pot: 'High', t: a => `${pick(NUMS)} decor mistakes that cheapen your home →` },
-  { type: 'Curiosity',    pot: 'High', t: a => `The ${pick(ROOMS)} formula top creators keep using →` },
-  { type: 'Curiosity',    pot: 'Medium', t: a => `What I'd do differently if I styled our ${pick(ROOMS)} again` },
-  { type: 'Before/After', pot: 'High', t: a => `From bare to ${pick(ADJ)}: our ${pick(ROOMS)} in ${pick(NUMS)} steps →` },
-  { type: 'Secret',       pot: 'Medium', t: a => `Underrated ${pickKw(a)} finds nobody gatekeeps enough →` },
-  { type: 'Budget',       pot: 'High', t: a => `High-end look, small budget: ${pick(NUMS)} swaps that work →` },
-  { type: 'How-to',       pot: 'Medium', t: a => `Save this: the exact steps to a ${pick(ADJ)} ${pick(ROOMS)} →` },
-  { type: 'POV/Relatable', pot: 'Experimental', t: a => `Signs you're becoming an interior person → (slide 4 is too real)` },
-];
-
+// ─── Style layer ──────────────────────────────────────────────────────
 const CTAS = [
   'Save this for your next room refresh 📌',
   'Which one would you try first? Tell me below ↓',
@@ -128,13 +101,118 @@ const CTAS = [
   'Save now, thank yourself on moving day',
 ];
 
+function shortenHook(t) {
+  let s = t.replace(/\s*[—(].*$/, '').trim();
+  const words = s.split(' ');
+  if (words.length > 9) s = words.slice(0, 9).join(' ') + '…';
+  return s;
+}
+
+const STYLES = {
+  default: {
+    label: 'Default', desc: 'Balanced, engaging — pure competitor patterns.',
+  },
+  shorter: {
+    label: 'Shorter', desc: 'Cuts length ~40% while keeping the key message.',
+    post: shortenHook, captionParas: 1, hashtagCount: 3,
+  },
+  hooky: {
+    label: 'More Hooky', desc: 'Opening impossible to ignore — curiosity in the first line.',
+    preferTypes: ['Curiosity', 'Secret', 'Mistake'],
+    prefixes: ['Wait —', 'Be honest:', 'No one tells you this:', 'Read this before you decorate:'],
+  },
+  viral: {
+    label: 'More Viral', desc: 'More emotional impact, curiosity and pattern interrupts — no clickbait.',
+    preferTypes: ['Before/After', 'Mistake', 'Curiosity', 'Budget'],
+    suffixes: [' — watch till the end', ' (nobody talks about this)', ' — I wish I\'d known this sooner', ' …and it took one afternoon'],
+    ctas: ['Comment "HOME" and I\'ll send you the full list', 'Tag someone who needs to see this', 'Save this before your next room refresh — you\'ll forget otherwise', 'Share this with your group chat, someone is redecorating'],
+  },
+  story: {
+    label: 'More Storytelling', desc: 'Setup, conflict, resolution — content that reads like a story.',
+    preferTypes: ['Before/After', 'POV/Relatable', 'How-to'],
+    extraHooks: [
+      { type: 'Before/After', pot: 'High',   t: a => `We almost gave up on our ${room()} — here's what saved it` },
+      { type: 'POV/Relatable', pot: 'Medium', t: a => `A year ago this ${room()} made us want to move. Today it's our favorite room.` },
+      { type: 'Before/After', pot: 'High',   t: a => `From "we'll fix it someday" to this — the ${room()} story` },
+    ],
+    bodies: [
+      a => `When we moved in, the ${room()} was the room we apologized for. Bad light, no plan, furniture that never belonged together.\n\nThe turning point wasn't a big budget — it was admitting the layout was the problem. We stripped it back, started with ${thing()}, and let the room tell us what it needed.\n\nNow it's where every evening ends. Sometimes the ugliest room becomes the best one — it just needs a story arc.`,
+      a => `Six months ago I stood in this ${room()} close to tears. Everything we tried made it worse, and every saved inspo photo felt out of reach.\n\nThen one small thing changed: we stopped copying and started with ${pickKw(a)}. One honest decision led to the next.\n\nThe room you're seeing is the resolution of that fight. If you're mid-makeover and tired — keep going. The turning point is usually one decision away.`,
+      a => `Every home has one room that resists you. Ours was the ${room()}.\n\nWe tried three layouts, returned more than we kept, and nearly settled for "good enough". The fix was embarrassingly simple: ${thing()}, and the patience to wait for the right pieces.\n\nMoral of the story: rooms aren't finished when they're full. They're finished when they feel inevitable.`,
+    ],
+    ctas: ['The full story doesn\'t fit in a caption — ask me anything below ↓', 'Save this if you\'re mid-makeover and tired', 'Follow along — the next room is already in progress'],
+  },
+  casual: {
+    label: 'More Casual', desc: 'Like talking to a friend — relaxed, natural, real.',
+    prefixes: ['Okay so —', 'Honestly?', 'Real talk:', 'Not me saying this out loud but —'],
+    forceEmoji: true,
+    ctas: ['lmk which one you\'d actually try 👇', 'save this for later, future you says thanks 🫶', 'send this to your redecorating bestie', 'anyway. follow for more of our chaos-to-cozy journey ✌️'],
+  },
+  luxury: {
+    label: 'More Luxury', desc: 'Premium, exclusive, sophisticated tone.',
+    banTypes: ['Budget'],
+    adj: ['quietly luxurious', 'refined', 'sculptural', 'understated', 'tailored', 'heritage', 'considered'],
+    things: ['bespoke joinery', 'a sculptural lamp', 'natural stone', 'linen drapery', 'aged brass details', 'a single statement piece'],
+    noEmoji: true, hashtagCount: 4,
+    post: t => t.replace(/\bcozy\b/gi, 'quietly luxurious').replace(/\bIKEA\b/g, 'the high street').replace(/look expensive/gi, 'feel considered'),
+    ctas: ['Save for your next considered purchase.', 'Follow for interiors with intention.', 'Share with someone who appreciates the details.'],
+  },
+  emotional: {
+    label: 'More Emotional', desc: 'Feelings and relatable moments front and center.',
+    preferTypes: ['POV/Relatable', 'Aesthetic/Mood', 'Before/After'],
+    extraHooks: [
+      { type: 'POV/Relatable', pot: 'High', t: a => `The moment our ${room()} finally felt like *home* — I didn't expect it to hit this hard` },
+      { type: 'POV/Relatable', pot: 'Medium', t: a => `Nobody warns you how emotional finishing a ${room()} actually is` },
+    ],
+    bodies: [
+      a => `There's a specific feeling when a room finally holds you instead of just housing you.\n\nFor us it happened in the ${room()} — the first evening the light was warm, the ${thing()} was in place, and nobody wanted to leave. That's the whole point of all of this, isn't it?\n\nNot a perfect home. A home that feels like the people in it.`,
+      a => `I used to scroll past ${adj()} homes thinking that feeling was for other people.\n\nThen we changed one thing — ${pickKw(a)} — and suddenly our ${room()} was the place where the good moments happen. The Sunday coffees. The late talks. The quiet.\n\nYour home is allowed to be a feeling, not a checklist.`,
+    ],
+    ctas: ['Tell me I\'m not the only one 🥹', 'Save this if your home is your safe place', 'Send this to someone building their first real home ♡'],
+  },
+};
+
+let currentStyle = 'default';
+
+// ─── Template banks ───────────────────────────────────────────────────
+const REEL_TEMPLATES = [
+  { type: 'Curiosity',    pot: 'High', t: a => `The one thing that made our ${room()} finally feel finished` },
+  { type: 'Curiosity',    pot: 'High', t: a => `Nobody talks about this when styling a ${room()}…` },
+  { type: 'Curiosity',    pot: 'Medium', t: a => `Why your ${room()} feels off — and it's not the furniture` },
+  { type: 'List',         pot: 'High', t: a => `${num()} ${adj()} details that instantly upgrade any ${room()}` },
+  { type: 'List',         pot: 'High', t: a => `${num()} things I'd never buy again for our home` },
+  { type: 'Mistake',      pot: 'High', t: a => `Stop doing this in your ${room()} (it makes it look smaller)` },
+  { type: 'Mistake',      pot: 'Medium', t: a => `The ${pickKw(a)} mistake almost everyone makes` },
+  { type: 'Before/After', pot: 'High', t: a => `We gave our ${room()} a weekend makeover — watch till the end` },
+  { type: 'Before/After', pot: 'High', t: a => `POV: the landlord said "no changes" — we did this instead` },
+  { type: 'Secret',       pot: 'Medium', t: a => `The most underrated ${pickKw(a)} trick in interior design` },
+  { type: 'Secret',       pot: 'Medium', t: a => `IKEA won't tell you this, but…` },
+  { type: 'How-to',       pot: 'Medium', t: a => `How we made our ${room()} look expensive with ${thing()}` },
+  { type: 'Budget',       pot: 'High', t: a => `This cost us under 50€ and changed the whole ${room()}` },
+  { type: 'POV/Relatable', pot: 'Medium', t: a => `POV: you finally found your interior style after ${num()} tries` },
+  { type: 'Aesthetic/Mood', pot: 'Experimental', t: a => `A ${adj()} morning in our ${room()} — sound on` },
+];
+
+const SLIDE_TEMPLATES = [
+  { type: 'List',         pot: 'High', t: a => `${num()} ${pickKw(a)} ideas you'll want to save →` },
+  { type: 'List',         pot: 'High', t: a => `${num()} ways to make a ${room()} feel ${adj()} (swipe)` },
+  { type: 'Mistake',      pot: 'High', t: a => `${num()} decor mistakes that cheapen your home →` },
+  { type: 'Curiosity',    pot: 'High', t: a => `The ${room()} formula top creators keep using →` },
+  { type: 'Curiosity',    pot: 'Medium', t: a => `What I'd do differently if I styled our ${room()} again` },
+  { type: 'Before/After', pot: 'High', t: a => `From bare to ${adj()}: our ${room()} in ${num()} steps →` },
+  { type: 'Secret',       pot: 'Medium', t: a => `Underrated ${pickKw(a)} finds nobody gatekeeps enough →` },
+  { type: 'Budget',       pot: 'High', t: a => `High-end look, small budget: ${num()} swaps that work →` },
+  { type: 'How-to',       pot: 'Medium', t: a => `Save this: the exact steps to a ${adj()} ${room()} →` },
+  { type: 'POV/Relatable', pot: 'Experimental', t: a => `Signs you're becoming an interior person → (slide 4 is too real)` },
+];
+
 const HASHTAG_POOL = ['#interiorinspo', '#homedecor', '#cozyhome', '#interiorstyling', '#apartmenttherapy', '#myhomevibe', '#scandinavianhome', '#japandistyle', '#homemakeover', '#slowliving', '#interiordesignideas', '#altbauliebe', '#interior4all', '#solebich'];
 
 const CAPTION_BODIES = [
-  a => `It took us way too long to figure this out: a ${pick(ROOMS)} doesn't need more furniture, it needs ${pick(THINGS)}.\n\nWe kept adding pieces and it still felt unfinished — until we focused on ${pickKw(a)} instead. One change, completely different room.`,
-  a => `Honest take: most "${pick(ADJ)}" rooms you see online come down to ${pick(NUMS)} repeatable things — ${pick(THINGS)}, ${pick(THINGS)}, and light you can dim.\n\nNone of them are expensive. All of them are intentional.`,
+  a => `It took us way too long to figure this out: a ${room()} doesn't need more furniture, it needs ${thing()}.\n\nWe kept adding pieces and it still felt unfinished — until we focused on ${pickKw(a)} instead. One change, completely different room.`,
+  a => `Honest take: most "${adj()}" rooms you see online come down to ${num()} repeatable things — ${thing()}, ${thing()}, and light you can dim.\n\nNone of them are expensive. All of them are intentional.`,
   a => `We asked ourselves what actually makes a home feel calm — not photogenic, calm.\n\nThe answer kept coming back to ${pickKw(a)}. So this week we changed exactly that, and honestly? Best decision of the whole makeover.`,
-  a => `Small confession: our ${pick(ROOMS)} used to be the room we closed the door on.\n\nWhat changed it wasn't a renovation — it was ${pick(THINGS)} plus finally committing to a ${pick(ADJ)} palette. Proof that you don't need a big budget, just a clear direction.`,
+  a => `Small confession: our ${room()} used to be the room we closed the door on.\n\nWhat changed it wasn't a renovation — it was ${thing()} plus finally committing to a ${adj()} palette. Proof that you don't need a big budget, just a clear direction.`,
 ];
 
 // ─── Generation ───────────────────────────────────────────────────────
@@ -151,28 +229,56 @@ function adjustPotential(item, a) {
   return item.pot;
 }
 
+function styleBank(bank, kind) {
+  const st = S();
+  let b = [...bank, ...(st.extraHooks || [])];
+  if (st.banTypes) b = b.filter(t => !st.banTypes.includes(t.type));
+  const shuffled = b.sort(() => Math.random() - 0.5);
+  if (!st.preferTypes) return shuffled.slice(0, 7);
+  // ~5 preferred + 2 wildcards so preferred patterns dominate without being monotone
+  const pref = shuffled.filter(t => st.preferTypes.includes(t.type));
+  const rest = shuffled.filter(t => !st.preferTypes.includes(t.type));
+  return [...pref.slice(0, 5), ...rest.slice(0, 7 - Math.min(5, pref.length))];
+}
+
+function styleHookText(text) {
+  const st = S();
+  let t = text;
+  if (st.post) t = st.post(t);
+  if (st.prefixes && Math.random() < 0.6) t = `${pick(st.prefixes)} ${t.charAt(0).toLowerCase() + t.slice(1)}`;
+  if (st.suffixes && Math.random() < 0.5 && !/[—…→)]$/.test(t.trim())) t = t + pick(st.suffixes);
+  return t;
+}
+
 function generate(kind) {
   const a = window._studioAnalysis;
   if (!a) return [];
+  const st = S();
   const bank = kind === 'reel' ? REEL_TEMPLATES : kind === 'slide' ? SLIDE_TEMPLATES : null;
 
   if (bank) {
-    const shuffled = [...bank].sort(() => Math.random() - 0.5).slice(0, 7);
-    return shuffled.map(tpl => {
-      const text = tpl.t(a);
-      return { text, type: tpl.type, pot: adjustPotential(tpl, a), why: why(tpl, a) };
-    });
+    return styleBank(bank, kind).map(tpl => ({
+      text: styleHookText(tpl.t(a)),
+      type: tpl.type,
+      pot: adjustPotential(tpl, a),
+      why: why(tpl, a),
+    }));
   }
 
   // Captions
+  const bodies = st.bodies || CAPTION_BODIES;
+  const ctas = st.ctas || CTAS;
+  const hookPool = styleBank(REEL_TEMPLATES, 'reel').filter(t => t.pot !== 'Experimental');
   return Array.from({ length: 5 }, () => {
-    const hookTpl = pick([...REEL_TEMPLATES.filter(t => t.pot === 'High')]);
-    const hook = hookTpl.t(a);
-    const body = pick(CAPTION_BODIES)(a);
-    const cta = pick(CTAS);
-    const useEmoji = a.emojiRate > 0.4;
+    const hookTpl = pick(hookPool.length ? hookPool : REEL_TEMPLATES);
+    const hook = styleHookText(hookTpl.t(a));
+    let body = pick(bodies)(a);
+    if (st.captionParas) body = body.split('\n\n').slice(0, st.captionParas).join('\n\n');
+    const cta = pick(ctas);
+    const useEmoji = st.noEmoji ? false : (st.forceEmoji || a.emojiRate > 0.4);
+    const tagCount = st.hashtagCount || 6;
     const tags = document.getElementById('st-hashtags').checked
-      ? '\n\n' + [...HASHTAG_POOL].sort(() => Math.random() - 0.5).slice(0, 6).join(' ') : '';
+      ? '\n\n' + [...HASHTAG_POOL].sort(() => Math.random() - 0.5).slice(0, tagCount).join(' ') : '';
     const text = `${useEmoji ? '✨ ' : ''}${hook}\n\n${body}\n\n${cta}${tags}`;
     return { text, type: hookTpl.type, pot: adjustPotential(hookTpl, a), why: why(hookTpl, a) };
   });
@@ -205,10 +311,11 @@ const POT_COLORS = { High: '#34c759', Medium: '#ff9500', Experimental: '#af52de'
 
 function card(item, kind) {
   const enc = encodeURIComponent(item.text);
+  const styleChip = currentStyle !== 'default' ? ` · ${S().label}` : '';
   return `<div class="st-card">
     <div class="st-card-head">
       <span class="st-pot" style="color:${POT_COLORS[item.pot]};border-color:${POT_COLORS[item.pot]}40;background:${POT_COLORS[item.pot]}12">${item.pot}</span>
-      <span class="st-type">${item.type}</span>
+      <span class="st-type">${item.type}${styleChip}</span>
     </div>
     <div class="st-text${kind === 'caption' ? ' st-text-multi' : ''}">${item.text.replace(/\n/g, '<br>')}</div>
     <div class="st-why">${item.why}</div>
@@ -239,6 +346,27 @@ window.studioSetSrc = (btn) => {
   btn.classList.add('active');
   document.getElementById('st-window-wrap').style.display = btn.dataset.src === 'evergreen' ? 'inline-flex' : 'none';
 };
+
+window.studioSetStyle = (btn) => {
+  currentStyle = btn.dataset.style;
+  document.querySelectorAll('.st-style-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('st-style-desc').textContent = S().desc;
+  // Re-generate any sections that already have output, so the style applies instantly
+  ['reel', 'slide', 'caption'].forEach(kind => {
+    if (document.querySelector(`#st-out-${kind} .st-card`)) window.studioRun(kind);
+  });
+};
+
+// Build style buttons
+document.addEventListener('DOMContentLoaded', () => {
+  const wrap = document.getElementById('st-styles');
+  if (!wrap) return;
+  wrap.innerHTML = Object.entries(STYLES).map(([id, st]) =>
+    `<button class="st-style-btn${id === 'default' ? ' active' : ''}" data-style="${id}" title="${st.desc}" onclick="studioSetStyle(this)">${st.label}</button>`
+  ).join('');
+  document.getElementById('st-style-desc').textContent = STYLES.default.desc;
+});
 
 // ─── Tab switching (Dashboard ↔ Studio) ──────────────────────────────
 window.showTab = (tab) => {
