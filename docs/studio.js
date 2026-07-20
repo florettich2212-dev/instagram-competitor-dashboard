@@ -109,8 +109,13 @@ const CTAS = [
 
 function shortenHook(t) {
   let s = t.replace(/\s*[—(].*$/, '').trim();
-  const words = s.split(' ');
-  if (words.length > 9) s = words.slice(0, 9).join(' ') + '…';
+  let words = s.split(' ');
+  if (words.length > 9) {
+    words = words.slice(0, 9);
+    // don't end on a dangling connector word
+    while (words.length && /^(with|for|of|to|a|an|the|and|in|on|any|our|your|my)$/i.test(words[words.length - 1])) words.pop();
+    s = words.join(' ') + '…';
+  }
   return s;
 }
 
@@ -154,14 +159,17 @@ const STYLES = {
     forceEmoji: true,
     ctas: ['lmk which one you\'d actually try 👇', 'save this for later, future you says thanks 🫶', 'send this to your redecorating bestie', 'anyway. follow for more of our chaos-to-cozy journey ✌️'],
   },
-  luxury: {
-    label: 'More Luxury', desc: 'Premium, exclusive, sophisticated tone.',
-    banTypes: ['Budget'],
-    adj: ['quietly luxurious', 'refined', 'sculptural', 'understated', 'tailored', 'heritage', 'considered'],
-    things: ['bespoke joinery', 'a sculptural lamp', 'natural stone', 'linen drapery', 'aged brass details', 'a single statement piece'],
-    noEmoji: true, hashtagCount: 4,
-    post: t => t.replace(/\bcozy\b/gi, 'quietly luxurious').replace(/\bIKEA\b/g, 'the high street').replace(/look expensive/gi, 'feel considered'),
-    ctas: ['Save for your next considered purchase.', 'Follow for interiors with intention.', 'Share with someone who appreciates the details.'],
+  direct: {
+    label: 'More Direct', desc: 'No fluff — straight to the point.',
+    preferTypes: ['List', 'Mistake', 'How-to', 'Budget'],
+    post: t => shortenHook(t.replace(/\b(finally|actually|honestly|literally|really)\s/gi, '')),
+    captionParas: 1, noEmoji: true, hashtagCount: 4,
+    bodies: [
+      a => `The fix for a ${room()} that feels off: ${thing()}. Not more furniture. Not a bigger budget. That one change.`,
+      a => `${num()} rules that work in every ${room()}:\n\n1. Fewer, bigger pieces.\n2. Warm light only.\n3. ${thing().charAt(0).toUpperCase() + thing().slice(1)} before decor.\n\nDo these first. Everything else is detail.`,
+      a => `Most rooms don't need a makeover. They need ${pickKw(a)} fixed.\n\nStart there. Takes one afternoon.`,
+    ],
+    ctas: ['Save this. You\'ll need it.', 'Try it this weekend, then tell me I was wrong.', 'Follow for interior advice without the fluff.'],
   },
   emotional: {
     label: 'More Emotional', desc: 'Feelings and relatable moments front and center.',
