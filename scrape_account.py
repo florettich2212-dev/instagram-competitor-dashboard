@@ -82,14 +82,24 @@ def main():
     full_name = profile.get("fullName", "")
     print(f"  followers: {followers}")
 
-    # Step 2: posts
-    posts_raw = run_apify(
-        "apify~instagram-scraper",
-        {"directUrls": [f"https://www.instagram.com/{USERNAME}/"],
-         "resultsType": "posts", "resultsLimit": 200,
-         "proxy": {"useApifyProxy": True}},
-    )
-    print(f"  posts scraped: {len(posts_raw)}")
+    # Step 2: posts — retry up to 3 times if Apify returns 0 (rate limit / login wall)
+    posts_raw = []
+    for attempt in range(1, 4):
+        print(f"  posts attempt {attempt}/3 …")
+        posts_raw = run_apify(
+            "apify~instagram-scraper",
+            {"directUrls": [f"https://www.instagram.com/{USERNAME}/"],
+             "resultsType": "posts", "resultsLimit": 100,
+             "proxy": {"useApifyProxy": True}},
+        )
+        print(f"  posts scraped: {len(posts_raw)}")
+        if posts_raw:
+            break
+        if attempt < 3:
+            print("  0 results — waiting 60s before retry …")
+            time.sleep(60)
+    if not posts_raw:
+        print("  WARNING: all 3 attempts returned 0 posts")
 
     # Step 3: images
     tasks = [(p["displayUrl"], p["shortCode"], p)

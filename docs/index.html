@@ -217,6 +217,68 @@
     @keyframes spin { to { transform: rotate(360deg); } }
 
     footer { text-align: center; padding: 32px; font-size: 12px; color: var(--text3); }
+
+    /* ─── Nav tabs ─── */
+    .nav-tabs { display: inline-flex; background: rgba(0,0,0,0.05); border-radius: 8px; padding: 2px; margin-left: 24px; }
+    .nav-tab {
+      font-family: inherit; font-size: 12px; padding: 5px 14px; border-radius: 6px;
+      border: none; background: none; color: var(--text2); cursor: pointer; transition: all 0.15s;
+    }
+    .nav-tab.active { background: var(--surface); color: var(--text); font-weight: 500; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+
+    /* ─── Content Studio ─── */
+    #studio-view { display: none; }
+    .st-hero { padding: 48px 40px 0; }
+    .st-hero h2 { font-size: 28px; font-weight: 700; letter-spacing: -0.02em; }
+    .st-hero p { font-size: 14px; color: var(--text2); margin-top: 6px; max-width: 620px; }
+    .st-controls {
+      margin: 24px 40px 0; padding: 16px 20px; background: var(--surface);
+      border-radius: 14px; display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
+    }
+    .st-src { display: inline-flex; background: rgba(0,0,0,0.05); border-radius: 8px; padding: 2px; }
+    .st-src-btn {
+      font-family: inherit; font-size: 12px; padding: 5px 14px; border-radius: 6px;
+      border: none; background: none; color: var(--text2); cursor: pointer;
+    }
+    .st-src-btn.active { background: var(--surface); color: var(--text); font-weight: 500; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .st-check { font-size: 12px; color: var(--text2); display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+    .st-export {
+      margin-left: auto; font-size: 12px; color: var(--text2); background: none;
+      border: 1px solid var(--border2); border-radius: 16px; padding: 5px 14px;
+      cursor: pointer; font-family: inherit; transition: all 0.15s;
+    }
+    .st-export:hover { background: var(--text); color: #fff; border-color: var(--text); }
+    #st-insight {
+      margin: 16px 40px 0; font-size: 12px; color: var(--text2);
+      padding: 10px 16px; background: #f0f4ff; border-radius: 10px; line-height: 1.5;
+    }
+    #st-insight:empty { display: none; }
+    .st-section { padding: 36px 40px 0; }
+    .st-section:last-of-type { padding-bottom: 56px; }
+    .st-section-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+    .st-section-head h3 { font-size: 18px; font-weight: 600; letter-spacing: -0.01em; }
+    .st-section-head p { font-size: 12px; color: var(--text3); margin-top: 2px; }
+    .st-gen-btn {
+      font-family: inherit; font-size: 13px; font-weight: 600; color: #fff;
+      background: #1d1d1f; border: none; border-radius: 20px; padding: 9px 20px;
+      cursor: pointer; transition: opacity 0.15s;
+    }
+    .st-gen-btn:hover { opacity: 0.82; }
+    .st-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; }
+    .st-card { background: var(--surface); border-radius: 14px; padding: 18px 20px; display: flex; flex-direction: column; gap: 10px; }
+    .st-card-head { display: flex; align-items: center; gap: 8px; }
+    .st-pot { font-size: 10px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; padding: 3px 8px; border-radius: 12px; border: 1px solid; }
+    .st-type { font-size: 11px; color: var(--text3); }
+    .st-text { font-size: 15px; font-weight: 500; line-height: 1.45; letter-spacing: -0.01em; }
+    .st-text-multi { font-size: 13px; font-weight: 400; color: var(--text); white-space: normal; }
+    .st-why { font-size: 11px; color: var(--text3); line-height: 1.5; border-top: 1px solid var(--border); padding-top: 10px; }
+    .st-actions { display: flex; gap: 8px; }
+    .st-actions button {
+      font-family: inherit; font-size: 11px; color: var(--text2); background: var(--bg);
+      border: none; border-radius: 8px; padding: 6px 12px; cursor: pointer; transition: all 0.15s;
+    }
+    .st-actions button:hover { background: var(--text); color: #fff; }
+    .st-empty { grid-column: 1/-1; padding: 32px; text-align: center; color: var(--text3); font-size: 13px; }
   </style>
 </head>
 <body>
@@ -238,9 +300,13 @@
 <!-- ─── App ─── -->
 <div id="app">
   <header>
-    <div>
+    <div style="display:flex;align-items:center">
       <span class="brand">lamaisondeleoniie</span>
       <span class="brand-sub">Competitor Tracker</span>
+      <div class="nav-tabs">
+        <button class="nav-tab active" data-tab="dash" onclick="showTab('dash')">Dashboard</button>
+        <button class="nav-tab" data-tab="studio" onclick="showTab('studio')">Content Studio</button>
+      </div>
     </div>
     <div class="header-right">
       <button class="btn-refresh" id="refresh-btn" onclick="refreshAll()">
@@ -253,6 +319,7 @@
     </div>
   </header>
 
+  <div id="dash-view">
   <div class="controls">
     <span class="ctrl-label">Window</span>
     <div class="pill-select-wrap">
@@ -304,6 +371,69 @@
       </div>
     </div>
   </div>
+  </div><!-- /dash-view -->
+
+  <!-- ─── Content Studio ─── -->
+  <div id="studio-view">
+    <div class="st-hero">
+      <h2>Content Studio</h2>
+      <p>Hooks and captions generated from what's actually performing across your 24 tracked competitors — proven patterns, original wording.</p>
+    </div>
+
+    <div class="st-controls">
+      <span class="ctrl-label">Source</span>
+      <div class="st-src">
+        <button class="st-src-btn active" data-src="recent" onclick="studioSetSrc(this)">Recent Trends</button>
+        <button class="st-src-btn" data-src="evergreen" onclick="studioSetSrc(this)">Evergreen Winners</button>
+      </div>
+      <span id="st-window-wrap" style="display:none;align-items:center;gap:8px">
+        <span class="ctrl-label">Timeframe</span>
+        <select class="pill-select" id="st-window">
+          <option value="90">Last 90 days</option>
+          <option value="180">Last 6 months</option>
+          <option value="365">Last 12 months</option>
+          <option value="0">All time</option>
+        </select>
+      </span>
+      <label class="st-check"><input type="checkbox" id="st-hashtags" checked> Include hashtags (captions)</label>
+      <button class="st-export" onclick="studioExport()">Export favorites ↓</button>
+    </div>
+
+    <div id="st-insight"></div>
+
+    <div class="st-section">
+      <div class="st-section-head">
+        <div>
+          <h3>Reel Hooks</h3>
+          <p>Opening lines engineered to stop the scroll in the first second.</p>
+        </div>
+        <button class="st-gen-btn" onclick="studioRun('reel')">Generate</button>
+      </div>
+      <div class="st-grid" id="st-out-reel"></div>
+    </div>
+
+    <div class="st-section">
+      <div class="st-section-head">
+        <div>
+          <h3>Slideshow Hooks</h3>
+          <p>First-slide headlines that make people swipe.</p>
+        </div>
+        <button class="st-gen-btn" onclick="studioRun('slide')">Generate</button>
+      </div>
+      <div class="st-grid" id="st-out-slide"></div>
+    </div>
+
+    <div class="st-section">
+      <div class="st-section-head">
+        <div>
+          <h3>Captions</h3>
+          <p>Full captions with hook, story, CTA — ready to pair with your Reel or carousel.</p>
+        </div>
+        <button class="st-gen-btn" onclick="studioRun('caption')">Generate</button>
+      </div>
+      <div class="st-grid" id="st-out-caption"></div>
+    </div>
+  </div><!-- /studio-view -->
 
   <div id="status-banner"><div class="spinner"></div><span id="status-text">Starting…</span></div>
   <footer>Last updated: <span id="ts">—</span></footer>
@@ -341,7 +471,7 @@ if (sessionStorage.getItem('auth') === '1') {
 }
 
 // ─── State ────────────────────────────────────────────────────────────
-let rawData = [], currentSort = 'likes', currentDays = 21, spotlightLimit = 8;
+var rawData = [], currentSort = 'likes', currentDays = 21, spotlightLimit = 8;
 
 // ─── Helpers ──────────────────────────────────────────────────────────
 const fmt  = n => !n ? '0' : n >= 1e6 ? (n/1e6).toFixed(1)+'M' : n >= 1000 ? (n/1000).toFixed(1)+'K' : ''+n;
@@ -612,5 +742,6 @@ function changeDays(v) {
 // ─── Init ─────────────────────────────────────────────────────────────
 if (sessionStorage.getItem('auth') === '1') loadData();
 </script>
+<script src="studio.js"></script>
 </body>
 </html>
