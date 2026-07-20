@@ -327,7 +327,7 @@ const POT_COLORS = { High: '#34c759', Medium: '#ff9500', Experimental: '#af52de'
 function card(item, kind) {
   const enc = encodeURIComponent(item.text);
   const styleChip = currentStyle !== 'default' ? ` · ${S().label}` : '';
-  return `<div class="st-card">
+  return `<div class="st-card st-glass">
     <div class="st-card-head">
       <span class="st-pot" style="color:${POT_COLORS[item.pot]};border-color:${POT_COLORS[item.pot]}40;background:${POT_COLORS[item.pot]}12">${item.pot}</span>
       <span class="st-type">${item.type}${styleChip}</span>
