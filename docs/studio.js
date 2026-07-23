@@ -400,10 +400,10 @@ function card(item, kind) {
     : `${item.type}${styleChip}`;
   const viewBtn = o
     ? `<a class="st-linkbtn" href="${o.url}" target="_blank" rel="noopener">${kind === 'reel' ? 'Watch Reel ↗' : 'View post ↗'}</a>` : '';
-  // The hook of a Reel/slideshow lives inside the media itself — show the cover
-  // (where the hook text is visible) instead of passing the caption off as the hook.
+  // Reel/slideshow originals: caption is the main text of the tile, cover below it
   const body = isVisual
-    ? `<a class="st-thumb" href="${o.url}" target="_blank" rel="noopener">
+    ? `<div class="st-text">${esc(item.text)}</div>
+      <a class="st-thumb" href="${o.url}" target="_blank" rel="noopener">
         ${o.thumb ? `<img src="${imgUrl(o.thumb)}" loading="lazy" alt="">` : ''}
         ${kind === 'reel' ? '<span class="st-play">▶</span>' : ''}
       </a>`
@@ -415,7 +415,7 @@ function card(item, kind) {
     </div>
     ${body}
     <div class="st-actions">
-      <button onclick="studioCopy(this,'${enc}')">${isVisual ? 'Copy caption' : 'Copy'}</button>
+      <button onclick="studioCopy(this,'${enc}')">Copy</button>
       <button onclick="studioFav(this,'${enc}')">☆ Save</button>
       ${viewBtn}
     </div>
