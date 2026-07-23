@@ -71,6 +71,7 @@ function analyze(mode) {
   return {
     posts: posts.length,
     winners,
+    ranked, // full performance-ranked list — deep pool for 1:1 originals
     keywords,
     topHooks,
     emojiRate: emojiPosts / winners.length,
@@ -263,10 +264,12 @@ let outputMode = 'mixed';
 const lastShown = { reel: [], slide: [], caption: [] };
 
 function viralOriginals(a, kind, count) {
-  return a.winners
+  // Draw from the full ranked list (not just top-quartile winners) so each
+  // category has 100+ options to rotate through; cap keeps it top-performing.
+  return (a.ranked || a.winners)
     .filter(p => (p.caption || '').trim().length > 15)
     .filter(p => kind === 'reel' ? p.is_video : kind === 'slide' ? !p.is_video : true)
-    .slice(0, count); // winners are already sorted by views+likes
+    .slice(0, Math.min(count, 150)); // ranked by views+likes
 }
 
 function makeOriginal(p, kind) {
