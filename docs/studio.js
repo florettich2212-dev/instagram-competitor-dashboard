@@ -238,16 +238,28 @@ function adjustPotential(item, a) {
   return item.pot;
 }
 
+const lastTemplates = { reel: new Set(), slide: new Set(), caption: new Set() };
+
 function styleBank(bank, kind) {
   const st = S();
   let b = [...bank, ...(st.extraHooks || [])];
   if (st.banTypes) b = b.filter(t => !st.banTypes.includes(t.type));
-  const shuffled = b.sort(() => Math.random() - 0.5);
-  if (!st.preferTypes) return shuffled.slice(0, 4);
-  // ~3 preferred + 1 wildcard so preferred patterns dominate without being monotone
-  const pref = shuffled.filter(t => st.preferTypes.includes(t.type));
-  const rest = shuffled.filter(t => !st.preferTypes.includes(t.type));
-  return [...pref.slice(0, 3), ...rest.slice(0, 4 - Math.min(3, pref.length))];
+  // Exclude templates shown in the previous generation so every click reads fresh
+  const prev = lastTemplates[kind];
+  const unseen = b.filter(t => !prev.has(t));
+  const pool = unseen.length >= 4 ? unseen : b;
+  const shuffled = pool.sort(() => Math.random() - 0.5);
+  let picked;
+  if (!st.preferTypes) {
+    picked = shuffled.slice(0, 4);
+  } else {
+    // ~3 preferred + 1 wildcard so preferred patterns dominate without being monotone
+    const pref = shuffled.filter(t => st.preferTypes.includes(t.type));
+    const rest = shuffled.filter(t => !st.preferTypes.includes(t.type));
+    picked = [...pref.slice(0, 3), ...rest.slice(0, 4 - Math.min(3, pref.length))];
+  }
+  lastTemplates[kind] = new Set(picked);
+  return picked;
 }
 
 function styleHookText(text) {
@@ -280,14 +292,19 @@ function makeOriginal(p, kind) {
     text,
     type: classifyHook(cap).label,
     pot: 'High',
-    original: { account: p._a, likes: p.likes || 0, views: p.views || 0, url: p.url, thumb: p.thumbnail_url || '' },
+    original: { account: p._a, likes: p.likes || 0, views: p.views || 0, url: p.url, thumb: p.thumbnail_url || '', shortcode: p.shortcode },
   };
 }
 
 function withOriginal(items, a, kind) {
-  const candidates = viralOriginals(a, kind, 8);
-  if (!candidates.length || Math.random() > 0.75) return items;
-  return [makeOriginal(pick(candidates), kind), ...items.slice(0, 3)];
+  const pool = viralOriginals(a, kind, 150);
+  if (!pool.length) return items;
+  const prev = new Set(lastShown[kind]);
+  let fresh = pool.filter(p => !prev.has(p.shortcode));
+  if (!fresh.length) { fresh = pool; lastShown[kind] = []; }
+  const p = pick(fresh);
+  lastShown[kind] = [...lastShown[kind], p.shortcode].slice(-40);
+  return [makeOriginal(p, kind), ...items.slice(0, 3)];
 }
 
 function generate(kind) {
@@ -306,7 +323,7 @@ function generate(kind) {
       picks = [...picks, ...seen.slice(0, 4 - picks.length)];
     }
     picks.sort((x, y) => score(y) - score(x));
-    lastShown[kind] = picks.map(p => p.shortcode);
+    lastShown[kind] = [...lastShown[kind], ...picks.map(p => p.shortcode)].slice(-40);
     return picks.map(p => makeOriginal(p, kind));
   }
 
@@ -383,12 +400,13 @@ function card(item, kind) {
     : `${item.type}${styleChip}`;
   const viewBtn = o
     ? `<a class="st-linkbtn" href="${o.url}" target="_blank" rel="noopener">${kind === 'reel' ? 'Watch Reel ↗' : 'View post ↗'}</a>` : '';
+  // The hook of a Reel/slideshow lives inside the media itself — show the cover
+  // (where the hook text is visible) instead of passing the caption off as the hook.
   const body = isVisual
     ? `<a class="st-thumb" href="${o.url}" target="_blank" rel="noopener">
         ${o.thumb ? `<img src="${imgUrl(o.thumb)}" loading="lazy" alt="">` : ''}
         ${kind === 'reel' ? '<span class="st-play">▶</span>' : ''}
-      </a>
-      ${item.text ? `<div class="st-cap-note">Caption: ${esc(item.text)}</div>` : ''}`
+      </a>`
     : `<div class="st-text${kind === 'caption' ? ' st-text-multi' : ''}">${esc(item.text).replace(/\n/g, '<br>')}</div>`;
   return `<div class="st-card st-glass${o ? ' st-viral' : ''}">
     <div class="st-card-head">
@@ -397,7 +415,7 @@ function card(item, kind) {
     </div>
     ${body}
     <div class="st-actions">
-      <button onclick="studioCopy(this,'${enc}')">Copy</button>
+      <button onclick="studioCopy(this,'${enc}')">${isVisual ? 'Copy caption' : 'Copy'}</button>
       <button onclick="studioFav(this,'${enc}')">☆ Save</button>
       ${viewBtn}
     </div>
