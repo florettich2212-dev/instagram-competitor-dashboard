@@ -281,7 +281,7 @@ function makeOriginal(p, kind) {
 }
 
 function withOriginal(items, a, kind) {
-  const candidates = viralOriginals(a, kind, 5);
+  const candidates = viralOriginals(a, kind, 8);
   if (!candidates.length || Math.random() > 0.75) return items;
   return [makeOriginal(pick(candidates), kind), ...items.slice(0, 3)];
 }
@@ -290,9 +290,15 @@ function generate(kind) {
   const a = window._studioAnalysis;
   if (!a) return [];
 
-  // 1:1 Originals mode — exact viral competitor captions only
+  // 1:1 Originals mode — exact viral competitor captions only.
+  // Sample 4 from the top-20 pool so every regenerate rotates through different originals.
   if (outputMode === 'originals') {
-    return viralOriginals(a, kind, 4).map(p => makeOriginal(p, kind));
+    const pool = viralOriginals(a, kind, 20);
+    return pool
+      .sort(() => Math.random() - 0.5)
+      .slice(0, 4)
+      .sort((x, y) => score(y) - score(x))
+      .map(p => makeOriginal(p, kind));
   }
 
   const st = S();
