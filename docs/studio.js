@@ -260,6 +260,7 @@ function styleHookText(text) {
 
 // Real 1:1 competitor captions from the top viral posts of the window
 let outputMode = 'mixed';
+const lastShown = { reel: [], slide: [], caption: [] };
 
 function viralOriginals(a, kind, count) {
   return a.winners
@@ -276,7 +277,7 @@ function makeOriginal(p, kind) {
     text,
     type: classifyHook(cap).label,
     pot: 'High',
-    original: { account: p._a, likes: p.likes || 0, views: p.views || 0, url: p.url },
+    original: { account: p._a, likes: p.likes || 0, views: p.views || 0, url: p.url, thumb: p.thumbnail_url || '' },
   };
 }
 
@@ -290,15 +291,20 @@ function generate(kind) {
   const a = window._studioAnalysis;
   if (!a) return [];
 
-  // 1:1 Originals mode — exact viral competitor captions only.
-  // Sample 4 from the top-20 pool so every regenerate rotates through different originals.
+  // 1:1 Originals mode — exact viral competitor posts only.
+  // Prefer posts not shown last time so each regenerate brings fresh options.
   if (outputMode === 'originals') {
-    const pool = viralOriginals(a, kind, 20);
-    return pool
-      .sort(() => Math.random() - 0.5)
-      .slice(0, 4)
-      .sort((x, y) => score(y) - score(x))
-      .map(p => makeOriginal(p, kind));
+    const pool = viralOriginals(a, kind, 1000);
+    const prev = new Set(lastShown[kind]);
+    const fresh = pool.filter(p => !prev.has(p.shortcode)).sort(() => Math.random() - 0.5);
+    let picks = fresh.slice(0, 4);
+    if (picks.length < 4) {
+      const seen = pool.filter(p => prev.has(p.shortcode)).sort(() => Math.random() - 0.5);
+      picks = [...picks, ...seen.slice(0, 4 - picks.length)];
+    }
+    picks.sort((x, y) => score(y) - score(x));
+    lastShown[kind] = picks.map(p => p.shortcode);
+    return picks.map(p => makeOriginal(p, kind));
   }
 
   const st = S();
@@ -363,19 +369,30 @@ function card(item, kind) {
   const enc = encodeURIComponent(item.text).replace(/'/g, '%27'); // %27: raw ' would break the onclick attr
   const o = item.original;
   const styleChip = currentStyle !== 'default' && !o ? ` · ${S().label}` : '';
+  // Reel/slide hooks live inside the media (video opening / first slide) — show the actual post,
+  // not the caption pretending to be the hook.
+  const isVisual = o && kind !== 'caption';
   const badge = o
-    ? `<span class="st-pot st-pot-viral">Viral Original</span>`
+    ? `<span class="st-pot st-pot-viral">${kind === 'reel' ? 'Viral Reel' : kind === 'slide' ? 'Viral Slideshow' : 'Viral Original'}</span>`
     : `<span class="st-pot" style="color:${POT_COLORS[item.pot]};background:${POT_COLORS[item.pot]}12">${item.pot}</span>`;
   const typeLine = o
     ? `1:1 from @${o.account} · ${o.views ? fmtN(o.views) + ' views · ' : ''}${fmtN(o.likes)} likes`
     : `${item.type}${styleChip}`;
-  const viewBtn = o ? `<a class="st-linkbtn" href="${o.url}" target="_blank" rel="noopener">View post ↗</a>` : '';
+  const viewBtn = o
+    ? `<a class="st-linkbtn" href="${o.url}" target="_blank" rel="noopener">${kind === 'reel' ? 'Watch Reel ↗' : 'View post ↗'}</a>` : '';
+  const body = isVisual
+    ? `<a class="st-thumb" href="${o.url}" target="_blank" rel="noopener">
+        ${o.thumb ? `<img src="${imgUrl(o.thumb)}" loading="lazy" alt="">` : ''}
+        ${kind === 'reel' ? '<span class="st-play">▶</span>' : ''}
+      </a>
+      ${item.text ? `<div class="st-cap-note">Caption: ${esc(item.text)}</div>` : ''}`
+    : `<div class="st-text${kind === 'caption' ? ' st-text-multi' : ''}">${esc(item.text).replace(/\n/g, '<br>')}</div>`;
   return `<div class="st-card st-glass${o ? ' st-viral' : ''}">
     <div class="st-card-head">
       ${badge}
       <span class="st-type">${esc(typeLine)}</span>
     </div>
-    <div class="st-text${kind === 'caption' ? ' st-text-multi' : ''}">${esc(item.text).replace(/\n/g, '<br>')}</div>
+    ${body}
     <div class="st-actions">
       <button onclick="studioCopy(this,'${enc}')">Copy</button>
       <button onclick="studioFav(this,'${enc}')">☆ Save</button>

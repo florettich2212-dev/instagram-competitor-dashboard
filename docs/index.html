@@ -358,6 +358,17 @@
       transition: all 0.3s cubic-bezier(0.34,1.3,0.64,1);
     }
     .st-linkbtn:hover { background: rgba(255,255,255,0.95); transform: translateY(-1px); box-shadow: 0 4px 10px rgba(30,40,70,0.1); }
+    .st-thumb {
+      position: relative; display: block; border-radius: 14px; overflow: hidden;
+      aspect-ratio: 1; background: #e5e5ea;
+    }
+    .st-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.4s ease; }
+    .st-thumb:hover img { transform: scale(1.04); }
+    .st-play {
+      position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+      font-size: 34px; color: #fff; background: rgba(0,0,0,0.18); text-shadow: 0 2px 10px rgba(0,0,0,0.45);
+    }
+    .st-cap-note { font-size: 12px; color: var(--text3); line-height: 1.5; }
   </style>
 </head>
 <body>
@@ -826,6 +837,6 @@ function changeDays(v) {
 // ─── Init ─────────────────────────────────────────────────────────────
 if (sessionStorage.getItem('auth') === '1') loadData();
 </script>
-<script src="studio.js?v=12"></script>
+<script src="studio.js?v=13"></script>
 </body>
 </html>
