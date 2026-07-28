@@ -130,6 +130,7 @@ def main():
             "likes":            likes,
             "comments":         comments,
             "views":            post.get("videoPlayCount") or post.get("videoViewCount") or 0,
+            "video_url":        post.get("videoUrl") or "",
             "engagement":       likes + comments,
             "engagement_rate":  er,
             "caption":          (post.get("caption") or "")[:280],
