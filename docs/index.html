@@ -152,11 +152,15 @@
     .tt-stat { background: var(--bg); border-radius: 12px; padding: 10px 14px; }
     .tt-stat b { display: block; font-size: 20px; font-weight: 500; letter-spacing: -0.02em; }
     .tt-stat span { font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.06em; }
-    .tt-cap { font-size: 13px; color: var(--text2); line-height: 1.55; overflow-y: auto; flex: 1; min-height: 40px; }
+    .tt-imglink { display: block; width: 100%; height: 100%; }
+    .tt-cap {
+      font-size: 11px; color: var(--text3); line-height: 1.5;
+      display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+    }
     .tt-open {
       display: inline-flex; align-items: center; justify-content: center; gap: 6px;
       background: #0071e3; color: #fff; text-decoration: none; font-size: 13px; font-weight: 500;
-      border-radius: 980px; padding: 10px 18px; transition: background 0.2s;
+      border-radius: 980px; padding: 10px 18px; transition: background 0.2s; margin-top: auto;
     }
     .tt-open:hover { background: #0077ed; }
     .tt-count { text-align: center; font-size: 12px; color: var(--text3); margin-top: 14px; }
@@ -663,16 +667,21 @@ function renderSpotlight(data) {
 
 const ttEmbed = code => `<iframe src="https://www.instagram.com/p/${code}/embed/" allow="autoplay; encrypted-media; fullscreen" loading="lazy"></iframe>`;
 function ttVideoFallback(v, code) { v.outerHTML = ttEmbed(code); }
+function ttImgFallback(img, code) { img.closest('.tt-imglink').outerHTML = ttEmbed(code); }
 
 function renderViewerPost() {
   const posts = window._vp || [];
   const p = posts[viewerIdx];
   if (!p) return;
+  // Reels: direct video (autoplay muted) when the URL is fresh, embed player otherwise.
+  // Images/slideshows: clickable thumbnail; missing/broken thumbnails fall back to the embed.
   const media = p.is_video
     ? (p.video_url
         ? `<video src="${p.video_url}" autoplay muted loop playsinline controls onerror="ttVideoFallback(this,'${p.shortcode}')"></video>`
         : ttEmbed(p.shortcode))
-    : (p.thumbnail_url ? `<img src="${imgUrl(p.thumbnail_url)}" alt="">` : '<div style="width:100%;height:100%;background:#26262a"></div>');
+    : (p.thumbnail_url
+        ? `<a class="tt-imglink" href="${p.url}" target="_blank" rel="noopener" title="Open on Instagram"><img src="${imgUrl(p.thumbnail_url)}" alt="" onerror="ttImgFallback(this,'${p.shortcode}')"></a>`
+        : ttEmbed(p.shortcode));
   document.getElementById('tt-stage').innerHTML = `<div class="tt-rank">#${viewerIdx+1}</div>${media}`;
   const extraStat = p.views
     ? `<div class="tt-stat"><b>${fmt(p.views)}</b><span>Views</span></div>`
