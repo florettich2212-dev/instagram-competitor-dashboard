@@ -683,7 +683,9 @@ function renderViewerPost() {
         ? `<a class="tt-imglink" href="${p.url}" target="_blank" rel="noopener" title="Open on Instagram"><img src="${imgUrl(p.thumbnail_url)}" alt="" onerror="ttImgFallback(this,'${p.shortcode}')"></a>`
         : ttEmbed(p.shortcode));
   document.getElementById('tt-stage').innerHTML = `<div class="tt-rank">#${viewerIdx+1}</div>${media}`;
-  const extraStat = p.views
+  // Apify returns a stale videoPlayCount for ~5% of Reels (fewer views than likes,
+  // which is impossible) — show Interactions instead of an implausible number.
+  const extraStat = p.views && p.views >= p.likes
     ? `<div class="tt-stat"><b>${fmt(p.views)}</b><span>Views</span></div>`
     : `<div class="tt-stat"><b>${fmt(p.engagement)}</b><span>Interactions</span></div>`;
   document.getElementById('tt-info').innerHTML = `
