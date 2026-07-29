@@ -102,6 +102,22 @@ def download_image(url, code):
     return None
 
 
+def build_slides(post):
+    """Ordered local image paths for a carousel: cover first, then each extra slide.
+    Returns [] for single-image posts so the frontend can just check length."""
+    if len(post.get("childUrls", [])) < 2:
+        return []
+    cover = post.get("localImage")
+    if not cover:
+        return []
+    extra = post.get("localSlides", {})
+    slides = [cover]
+    for i in range(len(post["childUrls"]) - 1):
+        if i in extra:
+            slides.append(extra[i])
+    return slides if len(slides) > 1 else []
+
+
 def main():
     result = {u: {"full_name": "", "followers": 0, "posts": []} for u in COMPETITORS}
 
@@ -150,16 +166,28 @@ def main():
             "caption": post.get("caption") or "",
             "type": post.get("type", "Image"),
             "displayUrl": post.get("displayUrl") or "",
+            # Carousel slides ("Sidecar" posts), capped at Instagram's classic limit of 10
+            "childUrls": [
+                c.get("displayUrl") for c in (post.get("childPosts") or [])[:10]
+                if c.get("displayUrl")
+            ],
         })
     total = sum(len(v["posts"]) for v in result.values())
     print(f"  → {total} posts fetched")
 
     print("Step 3/3: images …")
+    all_posts = [post for acc in result.values() for post in acc["posts"]]
     tasks = [
         (post["displayUrl"], post["shortCode"], post)
-        for acc in result.values()
-        for post in acc["posts"]
+        for post in all_posts
         if post.get("displayUrl") and post.get("shortCode")
+    ]
+    # Carousel slide 1 is the cover we already fetch, so start slide files at index 2
+    slide_tasks = [
+        (url, f"{post['shortCode']}_{i + 2}", post, i)
+        for post in all_posts
+        if post.get("shortCode")
+        for i, url in enumerate(post.get("childUrls", [])[1:])
     ]
 
     downloaded = 0
@@ -170,7 +198,21 @@ def main():
             if local:
                 futures[future]["localImage"] = local
                 downloaded += 1
-    print(f"  → {downloaded}/{len(tasks)} images downloaded")
+    print(f"  → {downloaded}/{len(tasks)} covers downloaded")
+
+    slides_done = 0
+    with ThreadPoolExecutor(max_workers=10) as ex:
+        futures = {
+            ex.submit(download_image, url, code): (post, i)
+            for url, code, post, i in slide_tasks
+        }
+        for future in as_completed(futures):
+            local = future.result()
+            post, i = futures[future]
+            if local:
+                post.setdefault("localSlides", {})[i] = local
+                slides_done += 1
+    print(f"  → {slides_done}/{len(slide_tasks)} extra carousel slides downloaded")
 
     # Build final JSON — save ALL posts unfiltered (frontend filters by days)
     output = []
@@ -199,6 +241,7 @@ def main():
                 "caption": (post.get("caption") or "")[:280],
                 "is_video": post.get("type") == "Video",
                 "thumbnail_url": post.get("localImage") or "",
+                "slides": build_slides(post),
             })
         output.append({
             "username": u,

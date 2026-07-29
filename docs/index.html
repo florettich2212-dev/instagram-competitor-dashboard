@@ -153,6 +153,33 @@
     .tt-stat b { display: block; font-size: 20px; font-weight: 500; letter-spacing: -0.02em; }
     .tt-stat span { font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.06em; }
     .tt-imglink { display: block; width: 100%; height: 100%; }
+    .tt-sl {
+      position: absolute; top: 50%; transform: translateY(-50%);
+      width: 28px; height: 28px; border-radius: 50%; border: none; cursor: pointer;
+      background: rgba(255,255,255,0.92); color: #1d1d1f;
+      font-size: 17px; line-height: 1; font-family: inherit;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.28); transition: all 0.15s; padding: 0 0 2px;
+    }
+    .tt-sl:hover { background: #fff; transform: translateY(-50%) scale(1.08); }
+    .tt-sl:disabled { opacity: 0; pointer-events: none; }
+    .tt-sl-prev { left: 10px; }
+    .tt-sl-next { right: 10px; }
+    .tt-dots {
+      position: absolute; bottom: 12px; left: 0; right: 0;
+      display: flex; justify-content: center; gap: 5px; pointer-events: none;
+    }
+    .tt-dots span {
+      width: 5px; height: 5px; border-radius: 50%; background: rgba(255,255,255,0.5);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.3); transition: background 0.2s;
+    }
+    .tt-dots span.on { background: #fff; }
+    .tt-slcount {
+      position: absolute; top: 12px; right: 12px;
+      font-size: 11px; font-weight: 600; color: #fff;
+      background: rgba(0,0,0,0.45); backdrop-filter: blur(8px);
+      padding: 3px 9px; border-radius: 980px; pointer-events: none;
+    }
     .tt-cap {
       font-size: 11px; color: var(--text3); line-height: 1.5;
       display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
@@ -639,7 +666,7 @@ function renderSummary(data) {
 }
 
 // ─── Top posts — TikTok-style viewer ─────────────────────────────────
-let viewerIdx = 0;
+let viewerIdx = 0, slideIdx = 0;
 
 function renderSpotlight(data) {
   const all = [];
@@ -669,19 +696,39 @@ const ttEmbed = code => `<iframe src="https://www.instagram.com/p/${code}/embed/
 function ttVideoFallback(v, code) { v.outerHTML = ttEmbed(code); }
 function ttImgFallback(img, code) { img.closest('.tt-imglink').outerHTML = ttEmbed(code); }
 
-function renderViewerPost() {
+function slideMedia(p) {
+  const slides = p.slides || [];
+  const src = slides.length > 1 ? slides[slideIdx] : p.thumbnail_url;
+  if (!src) return ttEmbed(p.shortcode);
+  const img = `<a class="tt-imglink" href="${p.url}" target="_blank" rel="noopener" title="Open on Instagram"><img src="${imgUrl(src)}" alt="" onerror="ttImgFallback(this,'${p.shortcode}')"></a>`;
+  if (slides.length < 2) return img;
+  return `${img}
+    <button class="tt-sl tt-sl-prev" ${slideIdx === 0 ? 'disabled' : ''} onclick="slideGo(-1)" aria-label="Previous slide">‹</button>
+    <button class="tt-sl tt-sl-next" ${slideIdx === slides.length - 1 ? 'disabled' : ''} onclick="slideGo(1)" aria-label="Next slide">›</button>
+    <div class="tt-dots">${slides.map((_, i) => `<span class="${i === slideIdx ? 'on' : ''}"></span>`).join('')}</div>
+    <div class="tt-slcount">${slideIdx + 1}/${slides.length}</div>`;
+}
+
+function slideGo(d) {
+  const p = (window._vp || [])[viewerIdx];
+  const n = (p?.slides || []).length;
+  if (!n) return;
+  slideIdx = Math.max(0, Math.min(n - 1, slideIdx + d));
+  renderViewerPost(true);
+}
+
+function renderViewerPost(keepSlide) {
   const posts = window._vp || [];
   const p = posts[viewerIdx];
   if (!p) return;
+  if (!keepSlide) slideIdx = 0;
   // Reels: direct video (autoplay muted) when the URL is fresh, embed player otherwise.
-  // Images/slideshows: clickable thumbnail; missing/broken thumbnails fall back to the embed.
+  // Slideshows: click-through arrows; single images stay a plain clickable thumbnail.
   const media = p.is_video
     ? (p.video_url
         ? `<video src="${p.video_url}" autoplay muted loop playsinline controls onerror="ttVideoFallback(this,'${p.shortcode}')"></video>`
         : ttEmbed(p.shortcode))
-    : (p.thumbnail_url
-        ? `<a class="tt-imglink" href="${p.url}" target="_blank" rel="noopener" title="Open on Instagram"><img src="${imgUrl(p.thumbnail_url)}" alt="" onerror="ttImgFallback(this,'${p.shortcode}')"></a>`
-        : ttEmbed(p.shortcode));
+    : slideMedia(p);
   document.getElementById('tt-stage').innerHTML = `<div class="tt-rank">#${viewerIdx+1}</div>${media}`;
   // Apify returns a stale videoPlayCount for ~5% of Reels (fewer views than likes,
   // which is impossible) — show Interactions instead of an implausible number.
