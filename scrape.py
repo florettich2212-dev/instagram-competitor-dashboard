@@ -11,6 +11,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import io
 
 APIFY_TOKEN = os.environ["APIFY_TOKEN"]
+REPO_RAW = "https://raw.githubusercontent.com/florettich2212-dev/instagram-competitor-dashboard/data"
 OUT = Path("output")
 IMG = OUT / "images"
 OUT.mkdir(exist_ok=True)
@@ -251,9 +252,33 @@ def main():
             "fetched_at": datetime.now(timezone.utc).isoformat(),
         })
 
+    # Guard against rate-limited runs destroying good data: load the previous
+    # data.json and, per account, keep whichever version has more posts. A healthy
+    # scrape returns an account's full recent history, so fewer posts = rate-limited.
+    try:
+        prev = requests.get(f"{REPO_RAW}/data.json", timeout=20).json()
+        prev_by_user = {a["username"]: a for a in prev}
+    except Exception as e:
+        print(f"[merge] could not load previous data.json ({e}) — writing fresh")
+        prev_by_user = {}
+
+    merged = []
+    kept = 0
+    for acc in output:
+        old = prev_by_user.get(acc["username"])
+        if old and len(old.get("posts", [])) > len(acc["posts"]):
+            print(f"[merge] @{acc['username']}: kept {len(old['posts'])} existing "
+                  f"(new run only had {len(acc['posts'])} — likely rate-limited)")
+            old["followers"] = acc["followers"] or old.get("followers", 0)
+            merged.append(old)
+            kept += 1
+        else:
+            merged.append(acc)
+
     with open(OUT / "data.json", "w") as f:
-        json.dump(output, f)
-    print(f"Saved output/data.json — {sum(len(a['posts']) for a in output)} posts total")
+        json.dump(merged, f)
+    print(f"Saved output/data.json — {sum(len(a['posts']) for a in merged)} posts total "
+          f"({kept} accounts kept from previous run)")
 
 
 if __name__ == "__main__":

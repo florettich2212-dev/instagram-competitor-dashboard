@@ -26,6 +26,14 @@ jobs:
           APIFY_TOKEN: ${{ secrets.APIFY_TOKEN }}
         run: python scrape.py
 
+      - name: Merge existing images from data branch
+        run: |
+          git fetch origin data 2>/dev/null || true
+          git checkout origin/data -- images/ 2>/dev/null || true
+          mkdir -p output/images
+          # Don't overwrite freshly downloaded images with older versions
+          cp -rn images/. output/images/ 2>/dev/null || true
+
       - name: Push data to data branch
         run: |
           cd output
