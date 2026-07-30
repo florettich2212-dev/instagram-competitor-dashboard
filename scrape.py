@@ -93,8 +93,9 @@ def download_image(url, code):
             try:
                 from PIL import Image
                 img = Image.open(io.BytesIO(r.content)).convert("RGB")
-                img.thumbnail((600, 600), Image.LANCZOS)
-                img.save(path, "JPEG", quality=82, optimize=True)
+                # 1080px = Instagram's native size; keeps the full-screen viewer sharp on retina
+                img.thumbnail((1080, 1080), Image.LANCZOS)
+                img.save(path, "JPEG", quality=90, optimize=True)
             except Exception:
                 path.write_bytes(r.content)
             return f"images/{code}.jpg"
