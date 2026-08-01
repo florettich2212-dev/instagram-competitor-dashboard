@@ -79,6 +79,17 @@ def run_apify(actor_id, payload, timeout=600):
         json=payload,
         timeout=30,
     )
+    if run.status_code >= 400:
+        # Surface Apify's own message — the CI log otherwise only shows a bare
+        # HTTPError, and 401 (bad token) vs 402 (quota exhausted) need different fixes.
+        print(f"\n[apify] HTTP {run.status_code} from {actor_id}")
+        print(f"[apify] response: {run.text[:500]}")
+        if run.status_code == 401:
+            print("[apify] => TOKEN REJECTED. Create a token at console.apify.com "
+                  "(Settings > API & Integrations) and update the APIFY_TOKEN repo secret.")
+        elif run.status_code in (402, 403):
+            print("[apify] => QUOTA/PERMISSION issue. Check Billing > Usage at console.apify.com.")
+        print()
     run.raise_for_status()
     data = run.json()["data"]
     run_id = data["id"]
