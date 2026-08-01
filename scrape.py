@@ -54,7 +54,6 @@ COMPETITORS = [
     "iamlinaangelina",
     "maeisonjen",
     "eloisepreen",
-    "bernstein_",
     "herz.und.blut",
     "konradpichlmeier",
     "ronneshome",

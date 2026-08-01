@@ -840,12 +840,22 @@ const visible = arr => arr.filter(p => !p.likes_hidden);
 const avgVisible = (arr, f) => { const v = visible(arr); return v.length ? avg(v, f) : null; };
 const fmtOrDash = (v, f) => v === null ? '—' : f(v);
 
+// Posting cadence, anchored to today over a window that's the same for every
+// account. Measuring across each account's own data span made this meaningless:
+// spans run from 16 to 1000+ days, so a dormant account with deep history could
+// outrank an account posting daily. Where our data doesn't reach back the full
+// window we use what we have, rather than understating the account.
+const CADENCE_DAYS = 90;
+const DAY_MS = 864e5, WEEK_MS = 6048e5;
+
 function postsPerWeek(posts) {
-  if (!posts.length) return 0;
-  const t = posts.map(p => new Date(p.date).getTime()).filter(n => !isNaN(n));
-  if (t.length < 2) return t.length;
-  const weeks = (Math.max(...t) - Math.min(...t)) / 6048e5;   // ms per week
-  return posts.length / Math.max(weeks, 1);
+  const t = (posts || []).map(p => new Date(p.date).getTime()).filter(n => !isNaN(n));
+  if (!t.length) return null;
+  const now = Date.now();
+  const windowMs = Math.min(CADENCE_DAYS * DAY_MS, now - Math.min(...t));
+  if (windowMs < 14 * DAY_MS) return null;   // too little history to be meaningful
+  const cutoff = now - windowMs;
+  return t.filter(x => x >= cutoff).length / (windowMs / WEEK_MS);
 }
 
 function lbColumns() {
@@ -855,7 +865,7 @@ function lbColumns() {
     { key:'account',   label:'Account',        align:'left',  val:a=>a.username.toLowerCase(), fmt:null, dir:1 },
     { key:'followers', label:'Followers',      align:'right', val:a=>a.followers||0,      fmt:v=>fmt(v) },
     { key:'postsAll',  label:'Posts',          align:'right', val:a=>a._all.length,       fmt:v=>v },
-    { key:'perWeek',   label:'Posts / wk',     align:'right', val:a=>postsPerWeek(a._all),fmt:v=>v.toFixed(1) },
+    { key:'perWeek',   label:'Posts / wk (90d)', align:'right', val:a=>postsPerWeek(a._all), fmt:v=>fmtOrDash(v,x=>x.toFixed(1)) },
     { key:'postsTf',   label:`Posts (${d})`,   align:'right', val:a=>a._tf.length,        fmt:v=>v },
     { key:'likesAll',  label:'Avg likes',      align:'right', val:a=>avgVisible(a._all,p=>p.likes), fmt:v=>fmtOrDash(v,x=>fmt(Math.round(x))) },
     { key:'likesTf',   label:`Avg likes (${d})`, align:'right', val:a=>avgVisible(a._tf,p=>p.likes), fmt:v=>fmtOrDash(v,x=>fmt(Math.round(x))), hi:1 },
