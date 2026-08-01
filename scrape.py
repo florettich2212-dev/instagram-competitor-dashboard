@@ -33,7 +33,12 @@ IMG.mkdir(exist_ok=True)
 MODE = os.environ.get("MODE", "incremental").strip().lower()
 # Instagram returns newest-first, so a shallow window still catches all new activity
 RECENT_LIMIT = int(os.environ.get("RECENT_LIMIT", "24"))
+# Explicit MODE=backfill rebuilds deep history for everyone (expensive, rarely needed)
 BACKFILL_LIMIT = int(os.environ.get("BACKFILL_LIMIT", "200"))
+# Auto-pull for accounts we have no history for. 60 covers ~6+ months for a
+# typical creator, which is the dashboard's longest window — much cheaper than
+# a full backfill and Apify bills per post returned.
+NEW_ACCOUNT_LIMIT = int(os.environ.get("NEW_ACCOUNT_LIMIT", "60"))
 
 COMPETITORS = [
     "lamaisondeleoniie",
@@ -226,6 +231,10 @@ def main():
     if deep:
         print(f"  full pull for: {', '.join(deep)}")
 
+    deep_limit = BACKFILL_LIMIT if MODE == "backfill" else NEW_ACCOUNT_LIMIT
+    est = len(shallow) * RECENT_LIMIT + len(deep) * deep_limit + len(COMPETITORS)
+    print(f"  estimated Apify results this run: ~{est}")
+
     posts_raw = []
     if shallow:
         posts_raw += scrape_posts(shallow, RECENT_LIMIT, "recent", 12)
@@ -233,7 +242,7 @@ def main():
         if shallow:
             print("  waiting 30s before full-pull batches …")
             time.sleep(30)
-        posts_raw += scrape_posts(deep, BACKFILL_LIMIT, "full", 6)
+        posts_raw += scrape_posts(deep, deep_limit, "full", 6)
 
     for post in posts_raw:
         if post.get("error"):
