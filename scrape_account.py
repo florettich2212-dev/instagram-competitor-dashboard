@@ -112,7 +112,17 @@ def main():
     profile = next((p for p in profiles if p.get("username") == USERNAME), {})
     followers = profile.get("followersCount", 0)
     full_name = profile.get("fullName", "")
+    posts_count = profile.get("postsCount") or 0
     print(f"  followers: {followers}")
+
+    # Avatar — CDN URLs are IP-restricted, so it has to be stored locally.
+    # Without this a single-account refresh would wipe the account's picture.
+    pic_url = profile.get("profilePicUrlHD") or profile.get("profilePicUrl") or ""
+    profile_pic = ""
+    if pic_url:
+        (IMG / "profiles").mkdir(parents=True, exist_ok=True)
+        profile_pic = download_image(pic_url, f"profiles/{USERNAME}") or ""
+        print(f"  profile picture: {'ok' if profile_pic else 'failed'}")
 
     # Step 2: posts — only a recent window unless we have no history for this account.
     # Instagram returns newest-first, so this still catches everything new.
@@ -214,6 +224,9 @@ def main():
         "username":        USERNAME,
         "full_name":       full_name or existing_acc.get("full_name", ""),
         "followers":       followers or existing_acc.get("followers", 0),
+        # Fall back to what's stored so a partial scrape can't drop these fields
+        "profile_pic":     profile_pic or existing_acc.get("profile_pic", ""),
+        "posts_count":     posts_count or existing_acc.get("posts_count", 0),
         "posts":           posts_out,
         "fetched_at":      datetime.now(timezone.utc).isoformat(),
     }
