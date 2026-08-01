@@ -13,9 +13,9 @@ on:
           - refresh-all
           - backfill
       deepen:
-        description: 'Comma-separated accounts to deep-pull (extends truncated history). Overrides mode.'
+        description: 'Comma-separated accounts to deep-pull (extends truncated history). Overrides mode. Still shallow: hannesmauritzson,herz.und.blut,maison_herrfurth,konradpichlmeier,lamaisondeleoniie'
         required: false
-        default: 'hannesmauritzson,herz.und.blut,maison_herrfurth,konradpichlmeier,lamaisondeleoniie'
+        default: ''
         type: string
       deepen_limit:
         description: 'Posts per deepened account'
