@@ -1032,9 +1032,13 @@ async function refreshAccount(username) {
   if (btn) { btn.disabled = true; btn.textContent = '⏳'; }
 
   try {
+    // No Content-Type header on purpose: setting application/json makes this a
+    // "preflighted" CORS request, and the worker's OPTIONS response doesn't send
+    // Access-Control-Allow-Headers — so the browser blocks it ("Load failed").
+    // Without the header the body defaults to text/plain, which is CORS-safelisted,
+    // so no preflight happens. The worker's request.json() parses it either way.
     const res = await fetch(WORKER_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username }),
     });
     if (!res.ok) {
