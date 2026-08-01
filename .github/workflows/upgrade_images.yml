@@ -1,0 +1,70 @@
+name: Upgrade Image Quality
+
+on:
+  workflow_dispatch:
+    inputs:
+      min_likes:
+        description: 'Only upgrade posts above this like count'
+        required: false
+        default: '2000'
+        type: string
+      include_reels:
+        description: 'Also upgrade Reel cover images (Reels stream video anyway)'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+      max_posts:
+        description: 'Safety cap on posts to request (1 Apify result each)'
+        required: false
+        default: '400'
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  upgrade:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install requests Pillow
+
+      # Existing images must be present so the script can tell which are
+      # still low-res, and so untouched images survive the force-push.
+      - name: Restore existing images from data branch
+        run: |
+          git fetch origin data 2>/dev/null || true
+          git checkout origin/data -- images/ 2>/dev/null || true
+          mkdir -p output/images
+          cp -rn images/. output/images/ 2>/dev/null || true
+          echo "images present: $(ls output/images 2>/dev/null | wc -l)"
+
+      - name: Upgrade images
+        env:
+          APIFY_TOKEN: ${{ secrets.APIFY_TOKEN }}
+          MIN_LIKES: ${{ inputs.min_likes || '2000' }}
+          INCLUDE_REELS: ${{ inputs.include_reels || 'false' }}
+          MAX_POSTS: ${{ inputs.max_posts || '400' }}
+        run: python upgrade_images.py
+
+      - name: Push to data branch
+        run: |
+          cd output
+          git init
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git checkout -b data
+          git add -A
+          git commit -m "Image quality upgrade $(date -u '+%Y-%m-%d %H:%M UTC')"
+          git push --force https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git data
