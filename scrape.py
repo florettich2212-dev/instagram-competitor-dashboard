@@ -120,10 +120,22 @@ def run_apify(actor_id, payload, timeout=600):
     return items if isinstance(items, list) else []
 
 
+OLD_CAP = 600  # images saved before the 1080px upgrade were capped at this
+
+
 def download_image(url, code):
     path = IMG / f"{code}.jpg"
     if path.exists():
-        return f"images/{code}.jpg"
+        # Re-fetch images still capped at the old 600px so they upgrade to 1080px.
+        # Anything larger is already current and is skipped (no bandwidth cost).
+        try:
+            from PIL import Image
+            with Image.open(path) as im:
+                if max(im.size) > OLD_CAP:
+                    return f"images/{code}.jpg"
+        except Exception:
+            return f"images/{code}.jpg"
+        path.unlink(missing_ok=True)
     try:
         r = requests.get(url, headers=IMG_HEADERS, timeout=15)
         if r.status_code == 200 and r.content:
