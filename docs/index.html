@@ -242,6 +242,43 @@
     .no-posts-msg { padding: 20px 24px; font-size: 13px; color: var(--text3); }
     .err-msg { margin: 0 20px 12px; padding: 8px 12px; background: #fff2f2; border-radius: 8px; font-size: 12px; color: #c0392b; }
 
+    /* ─── Leaderboard ─── */
+    .lb-hint { font-size: 12px; color: var(--text3); }
+    .lb-wrap {
+      background: var(--surface); border-radius: 18px; overflow-x: auto;
+      border: 1px solid var(--border);
+    }
+    table.lb { border-collapse: collapse; width: 100%; font-size: 13px; }
+    table.lb th, table.lb td { padding: 11px 14px; white-space: nowrap; }
+    table.lb thead th {
+      position: sticky; top: 0; z-index: 2;
+      background: rgba(255,255,255,0.92); backdrop-filter: blur(10px);
+      font-size: 11px; font-weight: 600; letter-spacing: 0.03em;
+      color: var(--text3); text-transform: uppercase;
+      border-bottom: 1px solid var(--border2);
+    }
+    .lb-sortable { cursor: pointer; user-select: none; transition: color 0.15s; }
+    .lb-sortable:hover { color: var(--text); }
+    thead th.on { color: var(--text); }
+    table.lb tbody tr { border-bottom: 1px solid var(--border); transition: background 0.12s; }
+    table.lb tbody tr:last-child { border-bottom: none; }
+    table.lb tbody tr:hover { background: var(--bg); }
+    .ta-left { text-align: left; } .ta-right { text-align: right; } .ta-center { text-align: center; }
+    .lb-rank { color: var(--text3); font-variant-numeric: tabular-nums; width: 34px; }
+    .lb-acct a { display: flex; align-items: center; gap: 10px; text-decoration: none; color: inherit; }
+    .lb-acct a:hover .lb-names b { text-decoration: underline; }
+    .lb-pic { width: 34px; height: 34px; border-radius: 50%; object-fit: cover; flex-shrink: 0; background: #e5e5ea; }
+    .lb-pic-ph {
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; font-weight: 600; color: var(--text2);
+    }
+    .lb-names { display: flex; flex-direction: column; line-height: 1.25; }
+    .lb-names b { font-weight: 600; font-size: 13px; }
+    .lb-names em { font-style: normal; font-size: 11px; color: var(--text3); }
+    table.lb td.ta-right { font-variant-numeric: tabular-nums; }
+    .lb-hi { font-weight: 600; }
+    .lb-dim { color: var(--text3); }
+
     /* ─── Skeleton ─── */
     .skeleton-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
     .sk-card { background: var(--surface); border-radius: 18px; padding: 24px; animation: sk 1.4s ease infinite; }
@@ -497,8 +534,12 @@
     </div>
     <div class="spotlight" id="spotlight"></div>
 
-    <div class="section-label">All accounts</div>
-    <div class="accounts" id="accounts">
+    <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:16px">
+      <div class="section-label" style="margin-bottom:0">Leaderboard</div>
+      <div class="lb-hint" id="lb-hint"></div>
+    </div>
+    <div class="lb-wrap"><table class="lb" id="lb-table"></table></div>
+    <div class="accounts" id="accounts" style="display:none">
       <div class="skeleton-grid" style="grid-column:1/-1">
         <div class="sk-card"><div class="sk-line" style="width:40%;height:14px"></div><div class="sk-line" style="width:24%"></div><div class="sk-line" style="width:100%;margin-top:16px"></div><div class="sk-line"></div><div class="sk-line" style="width:70%"></div></div>
         <div class="sk-card"><div class="sk-line" style="width:40%;height:14px"></div><div class="sk-line" style="width:24%"></div><div class="sk-line" style="width:100%;margin-top:16px"></div><div class="sk-line"></div><div class="sk-line" style="width:70%"></div></div>
@@ -619,6 +660,21 @@ const fmt  = n => !n ? '0' : n >= 1e6 ? (n/1e6).toFixed(1)+'M' : n >= 1000 ? (n/
 const fmtD = iso => new Date(iso).toLocaleDateString('en-GB', {day:'numeric', month:'short'});
 const ini  = s => (s||'').split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase() || '?';
 const imgUrl = url => url ? `${RAW}/${url}` : '';
+
+// Creators can hide like counts; Apify reports -1. Treat those as unknown so
+// they never show as "-1" and never drag averages down.
+function normalizeData(data) {
+  (data || []).forEach(acc => {
+    (acc.posts || []).forEach(p => {
+      if ((p.likes || 0) < 0) { p.likes_hidden = true; p.likes = 0; }
+      if ((p.comments || 0) < 0) p.comments = 0;
+      p.engagement = (p.likes || 0) + (p.comments || 0);
+      p.engagement_rate = acc.followers
+        ? +((p.engagement / acc.followers) * 100).toFixed(2) : 0;
+    });
+  });
+  return data;
+}
 
 function filterData(data, days) {
   const cutoff = new Date();
@@ -772,7 +828,122 @@ document.addEventListener('keydown', e => {
   if (e.key === 'ArrowLeft' || e.key === 'ArrowUp')   { e.preventDefault(); viewerGo(-1); }
 });
 
+// ─── Leaderboard ──────────────────────────────────────────────────────
+// tableSort=null means "follow the global Sort by control"; clicking a column
+// header pins an explicit sort until the global control changes again.
+let tableSort = null;
+
+const avg = (arr, f) => arr.length ? arr.reduce((s,p)=>s+(f(p)||0),0)/arr.length : 0;
+// Likes and ER are unknown where the creator hides like counts, so those posts
+// are excluded rather than counted as zero. null renders as "—".
+const visible = arr => arr.filter(p => !p.likes_hidden);
+const avgVisible = (arr, f) => { const v = visible(arr); return v.length ? avg(v, f) : null; };
+const fmtOrDash = (v, f) => v === null ? '—' : f(v);
+
+function postsPerWeek(posts) {
+  if (!posts.length) return 0;
+  const t = posts.map(p => new Date(p.date).getTime()).filter(n => !isNaN(n));
+  if (t.length < 2) return t.length;
+  const weeks = (Math.max(...t) - Math.min(...t)) / 6048e5;   // ms per week
+  return posts.length / Math.max(weeks, 1);
+}
+
+function lbColumns() {
+  const d = currentDays + 'd';
+  return [
+    { key:'rank',      label:'#',              align:'right', sortable:false },
+    { key:'account',   label:'Account',        align:'left',  val:a=>a.username.toLowerCase(), fmt:null, dir:1 },
+    { key:'followers', label:'Followers',      align:'right', val:a=>a.followers||0,      fmt:v=>fmt(v) },
+    { key:'postsAll',  label:'Posts',          align:'right', val:a=>a._all.length,       fmt:v=>v },
+    { key:'perWeek',   label:'Posts / wk',     align:'right', val:a=>postsPerWeek(a._all),fmt:v=>v.toFixed(1) },
+    { key:'postsTf',   label:`Posts (${d})`,   align:'right', val:a=>a._tf.length,        fmt:v=>v },
+    { key:'likesAll',  label:'Avg likes',      align:'right', val:a=>avgVisible(a._all,p=>p.likes), fmt:v=>fmtOrDash(v,x=>fmt(Math.round(x))) },
+    { key:'likesTf',   label:`Avg likes (${d})`, align:'right', val:a=>avgVisible(a._tf,p=>p.likes), fmt:v=>fmtOrDash(v,x=>fmt(Math.round(x))), hi:1 },
+    { key:'erAll',     label:'Avg ER',         align:'right', val:a=>avgVisible(a._all,p=>p.engagement_rate), fmt:v=>fmtOrDash(v,x=>x.toFixed(2)+'%') },
+    { key:'erTf',      label:`Avg ER (${d})`,  align:'right', val:a=>avgVisible(a._tf,p=>p.engagement_rate), fmt:v=>fmtOrDash(v,x=>x.toFixed(2)+'%'), hi:1 },
+    { key:'comAll',    label:'Avg comments',   align:'right', val:a=>avg(a._all,p=>p.comments), fmt:v=>fmt(Math.round(v)) },
+    { key:'comTf',     label:`Avg comm. (${d})`, align:'right', val:a=>avg(a._tf,p=>p.comments), fmt:v=>fmt(Math.round(v)), hi:1 },
+    { key:'refresh',   label:'',               align:'center', sortable:false },
+  ];
+}
+
+// Which timeframe column the global "Sort by" control maps to
+const GLOBAL_TO_COL = { likes:'likesTf', comments:'comTf', engagement_rate:'erTf', date:'recent' };
+
+function renderLeaderboard(filtered) {
+  const cols = lbColumns();
+  const tfByUser = Object.fromEntries(filtered.map(a => [a.username, a.posts || []]));
+  const rows = rawData.map(a => ({
+    ...a,
+    _all: a.posts || [],
+    _tf: tfByUser[a.username] || [],
+  }));
+
+  const activeKey = tableSort ? tableSort.key : (GLOBAL_TO_COL[currentSort] || 'likesTf');
+  const dir = tableSort ? tableSort.dir : -1;   // -1 = best first
+
+  const valueOf = (a, key) => {
+    if (key === 'recent') {
+      const t = a._all.map(p => new Date(p.date).getTime()).filter(n => !isNaN(n));
+      return t.length ? Math.max(...t) : 0;
+    }
+    const c = cols.find(c => c.key === key);
+    return c && c.val ? c.val(a) : 0;
+  };
+
+  rows.sort((x, y) => {
+    const vx = valueOf(x, activeKey), vy = valueOf(y, activeKey);
+    if (typeof vx === 'string' || typeof vy === 'string')
+      return String(vx).localeCompare(String(vy)) * (dir === -1 ? 1 : -1);
+    // Unknown values (hidden likes, empty timeframe) always sink to the bottom
+    if (vx === null && vy === null) return 0;
+    if (vx === null) return 1;
+    if (vy === null) return -1;
+    return (vy - vx) * (dir === -1 ? 1 : -1);
+  });
+
+  const head = cols.map(c => {
+    if (c.sortable === false) return `<th class="ta-${c.align}">${c.label}</th>`;
+    const on = c.key === activeKey;
+    const arrow = on ? (dir === -1 ? ' ↓' : ' ↑') : '';
+    return `<th class="ta-${c.align} lb-sortable${on ? ' on' : ''}" onclick="lbSort('${c.key}')">${c.label}${arrow}</th>`;
+  }).join('');
+
+  const body = rows.map((a, i) => {
+    const pic = a.profile_pic ? imgUrl(a.profile_pic) : '';
+    const cells = cols.map(c => {
+      if (c.key === 'rank') return `<td class="ta-right lb-rank">${i+1}</td>`;
+      if (c.key === 'account') return `<td class="lb-acct">
+          <a href="https://instagram.com/${a.username}" target="_blank" rel="noopener" title="Open @${a.username} on Instagram">
+            ${pic ? `<img class="lb-pic" src="${pic}" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'lb-pic lb-pic-ph',textContent:'${ini(a.full_name||a.username)}'}))">`
+                  : `<div class="lb-pic lb-pic-ph">${ini(a.full_name||a.username)}</div>`}
+            <span class="lb-names"><b>${a.full_name || a.username}</b><em>@${a.username}</em></span>
+          </a></td>`;
+      if (c.key === 'refresh') return `<td class="ta-center"><button class="btn-acc-refresh" id="acc-refresh-${a.username}" onclick="refreshAccount('${a.username}')" title="Refresh this account">↻</button></td>`;
+      const v = c.val(a);
+      const empty = v === null || (c.key.endsWith('Tf') && !a._tf.length);
+      const title = (v === null && a._tf.length) ? ' title="Creator hides like counts"' : '';
+      return `<td class="ta-${c.align}${c.hi ? ' lb-hi' : ''}${empty ? ' lb-dim' : ''}"${title}>${empty ? '—' : c.fmt(v)}</td>`;
+    }).join('');
+    return `<tr>${cells}</tr>`;
+  }).join('');
+
+  document.getElementById('lb-table').innerHTML = `<thead><tr>${head}</tr></thead><tbody>${body}</tbody>`;
+  const lbl = (cols.find(c => c.key === activeKey) || {}).label || 'recency';
+  document.getElementById('lb-hint').textContent =
+    `${rows.length} accounts · ranked by ${activeKey === 'recent' ? 'most recent post' : lbl}` +
+    (tableSort ? ' · click a header to re-sort' : ' · from Sort by');
+}
+
+function lbSort(key) {
+  tableSort = (tableSort && tableSort.key === key)
+    ? { key, dir: tableSort.dir === -1 ? 1 : -1 }
+    : { key, dir: key === 'account' ? -1 : -1 };
+  render();
+}
+
 function renderAccounts(data) {
+  renderLeaderboard(data);
   const sortedAccounts = [...data].sort((a,b) => {
     const ap = sorted(a.posts)[0], bp = sorted(b.posts)[0];
     if (!ap && !bp) return 0; if (!ap) return 1; if (!bp) return -1;
@@ -820,7 +991,7 @@ async function loadData() {
   try {
     const r = await fetch(`${RAW}/data.json?t=${Date.now()}`);
     if (!r.ok) throw new Error('no data');
-    rawData = await r.json();
+    rawData = normalizeData(await r.json());
     render();
     const ts = rawData[0]?.fetched_at;
     document.getElementById('ts').textContent = ts ? new Date(ts).toLocaleString('en-GB') : '—';
@@ -943,6 +1114,7 @@ function setLimit(n, el) {
 
 function setSort(k, el) {
   currentSort = k;
+  tableSort = null;   // global control takes over the leaderboard again
   viewerIdx = 0;
   document.querySelectorAll('.seg-btn').forEach(b => b.classList.remove('active'));
   el.classList.add('active');

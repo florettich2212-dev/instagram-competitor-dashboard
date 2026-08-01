@@ -218,7 +218,24 @@ def main():
             result[u]["full_name"] = p.get("fullName", "")
             result[u]["followers"] = p.get("followersCount", 0)
             result[u]["posts_count"] = p.get("postsCount") or 0
+            result[u]["profile_pic_url"] = p.get("profilePicUrlHD") or p.get("profilePicUrl") or ""
     print(f"  → {len(profiles)} profiles fetched")
+
+    # Avatars: CDN URLs are IP-restricted, so they must be stored locally.
+    # Always re-fetched (they're small and accounts change them).
+    pic_jobs = [(a["profile_pic_url"], f"profiles/{u}", u)
+                for u, a in result.items() if a.get("profile_pic_url")]
+    if pic_jobs:
+        (IMG / "profiles").mkdir(parents=True, exist_ok=True)
+        got = 0
+        with ThreadPoolExecutor(max_workers=10) as ex:
+            futs = {ex.submit(download_image, url, code): user for url, code, user in pic_jobs}
+            for f in as_completed(futs):
+                local = f.result()
+                if local:
+                    result[futs[f]]["profile_pic"] = local
+                    got += 1
+        print(f"  → {got}/{len(pic_jobs)} profile pictures downloaded")
 
     # Accounts we have no history for must be deep-pulled regardless of mode
     known = [u for u in COMPETITORS if existing.get(u, {}).get("posts")]
@@ -340,10 +357,15 @@ def main():
             ts = post.get("timestamp", "")
             if not ts:
                 continue
-            likes = post.get("likesCount") or 0
-            comments = post.get("commentsCount") or 0
+            # Instagram lets creators hide like counts; Apify reports -1 for those.
+            # Treated as unknown (not zero) so averages aren't dragged down.
+            raw_likes = post.get("likesCount")
+            likes_hidden = raw_likes is not None and raw_likes < 0
+            likes = 0 if likes_hidden or not raw_likes else raw_likes
+            comments = max(post.get("commentsCount") or 0, 0)
             engagement = likes + comments
             fresh.append({
+                "likes_hidden": likes_hidden,
                 "shortcode": post.get("shortCode", ""),
                 "url": post.get("url", ""),
                 "date": ts,
@@ -379,6 +401,7 @@ def main():
             "username": u,
             "full_name": acc["full_name"] or old_acc.get("full_name", ""),
             "followers": followers,
+            "profile_pic": acc.get("profile_pic") or old_acc.get("profile_pic", ""),
             "posts_count": posts_count or old_acc.get("posts_count") or 0,
             "posts": posts_out,
             # Always "now": the frontend polls this to detect a completed refresh

@@ -178,10 +178,14 @@ def main():
         ts = post.get("timestamp", "")
         if not ts:
             continue
-        likes    = post.get("likesCount") or 0
-        comments = post.get("commentsCount") or 0
+        # Hidden like counts come back as -1 from Apify — treat as unknown, not zero
+        raw_likes = post.get("likesCount")
+        likes_hidden = raw_likes is not None and raw_likes < 0
+        likes    = 0 if likes_hidden or not raw_likes else raw_likes
+        comments = max(post.get("commentsCount") or 0, 0)
         er = round((likes + comments) / followers * 100, 2) if followers else 0
         posts_out.append({
+            "likes_hidden":     likes_hidden,
             "shortcode":        post.get("shortCode", ""),
             "url":              post.get("url", ""),
             "date":             ts,
