@@ -225,6 +225,10 @@ def main():
     unknown = [u for u in COMPETITORS if u not in known]
     if MODE == "backfill":
         deep, shallow, skipped = COMPETITORS, [], []
+    elif MODE == "refresh-all":
+        # Recent-window depth, but nothing is skipped — used to refresh media and
+        # metrics for every account (e.g. upgrading images) without a deep backfill.
+        deep, shallow, skipped = unknown, known, []
     else:
         deep = unknown
         # Skip accounts whose profile post count is unchanged: they published

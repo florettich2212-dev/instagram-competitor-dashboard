@@ -4,12 +4,13 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: 'incremental = only new posts (cheap) · backfill = full history (expensive)'
+        description: 'incremental = only new posts (cheapest) · refresh-all = recent window for every account, no skipping (upgrades images) · backfill = full history (most expensive)'
         required: false
         default: 'incremental'
         type: choice
         options:
           - incremental
+          - refresh-all
           - backfill
 
 permissions:
