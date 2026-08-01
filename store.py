@@ -9,6 +9,19 @@ shortcode, so:
 """
 
 
+def _normalize(p):
+    """Instagram lets creators hide like counts; Apify reports -1 for those.
+    Stored as 0 + likes_hidden so averages can exclude them instead of being
+    dragged negative. Self-heals rows written before this rule existed."""
+    if (p.get("likes") or 0) < 0:
+        p["likes"] = 0
+        p["likes_hidden"] = True
+    if (p.get("comments") or 0) < 0:
+        p["comments"] = 0
+    p["engagement"] = (p.get("likes") or 0) + (p.get("comments") or 0)
+    return p
+
+
 def merge_posts(stored, fresh, followers):
     """Union stored history with a freshly scraped window, keyed by shortcode.
 
@@ -21,7 +34,7 @@ def merge_posts(stored, fresh, followers):
     for p in stored:
         code = p.get("shortcode")
         if code:
-            by_code[code] = dict(p)
+            by_code[code] = _normalize(dict(p))
 
     added = 0
     for p in fresh:
@@ -42,7 +55,7 @@ def merge_posts(stored, fresh, followers):
             if p.get("slides"):
                 old["slides"] = p["slides"]
         else:
-            by_code[code] = p
+            by_code[code] = _normalize(p)
             added += 1
 
     merged = list(by_code.values())
