@@ -7,8 +7,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
+from store import merge_posts
+
 APIFY_TOKEN = os.environ["APIFY_TOKEN"]
 USERNAME    = os.environ["USERNAME"]
+RECENT_LIMIT   = int(os.environ.get("RECENT_LIMIT", "24"))
+BACKFILL_LIMIT = int(os.environ.get("BACKFILL_LIMIT", "200"))
 OUT  = Path("output")
 IMG  = OUT / "images"
 OUT.mkdir(exist_ok=True)
@@ -98,14 +102,20 @@ def main():
     full_name = profile.get("fullName", "")
     print(f"  followers: {followers}")
 
-    # Step 2: posts — retry up to 3 times if Apify returns 0 (rate limit / login wall)
+    # Step 2: posts — only a recent window unless we have no history for this account.
+    # Instagram returns newest-first, so this still catches everything new.
+    stored_count = len(next((a.get("posts", []) for a in existing
+                             if a["username"] == USERNAME), []))
+    limit = RECENT_LIMIT if stored_count else BACKFILL_LIMIT
+    print(f"  {stored_count} posts stored → pulling {limit} most recent")
+
     posts_raw = []
     for attempt in range(1, 4):
         print(f"  posts attempt {attempt}/3 …")
         posts_raw = run_apify(
             "apify~instagram-scraper",
             {"directUrls": [f"https://www.instagram.com/{USERNAME}/"],
-             "resultsType": "posts", "resultsLimit": 100,
+             "resultsType": "posts", "resultsLimit": limit,
              "proxy": {"useApifyProxy": True}},
         )
         print(f"  posts scraped: {len(posts_raw)}")
@@ -175,11 +185,14 @@ def main():
             "slides":           build_slides(post),
         })
 
-    # Don't overwrite existing posts if Apify returned nothing (rate limit / block)
+    # Merge the scraped window into stored history by shortcode — never replace it.
+    # A union can only grow, so a rate-limited run can't delete anything.
     existing_acc = next((a for a in existing if a["username"] == USERNAME), {})
-    if not posts_out and existing_acc.get("posts"):
-        print(f"WARNING: Apify returned 0 posts for @{USERNAME} — keeping existing {len(existing_acc['posts'])} posts")
-        posts_out = existing_acc["posts"]
+    stored = existing_acc.get("posts", [])
+    if not posts_out and stored:
+        print(f"WARNING: Apify returned 0 posts for @{USERNAME} — keeping existing {len(stored)} posts")
+    posts_out, added = merge_posts(stored, posts_out, followers or existing_acc.get("followers", 0))
+    print(f"  merged: {len(stored)} stored → {len(posts_out)} total ({added} new)")
 
     new_entry = {
         "username":        USERNAME,

@@ -2,6 +2,15 @@ name: Scrape Instagram Data
 
 on:
   workflow_dispatch:
+    inputs:
+      mode:
+        description: 'incremental = only new posts (cheap) · backfill = full history (expensive)'
+        required: false
+        default: 'incremental'
+        type: choice
+        options:
+          - incremental
+          - backfill
 
 permissions:
   contents: write
@@ -21,18 +30,21 @@ jobs:
       - name: Install dependencies
         run: pip install requests Pillow
 
-      - name: Run scraper
-        env:
-          APIFY_TOKEN: ${{ secrets.APIFY_TOKEN }}
-        run: python scrape.py
-
-      - name: Merge existing images from data branch
+      # Pre-load existing images so the scraper skips re-downloading them,
+      # and so images for untouched history survive the force-push.
+      - name: Restore existing images from data branch
         run: |
           git fetch origin data 2>/dev/null || true
           git checkout origin/data -- images/ 2>/dev/null || true
           mkdir -p output/images
-          # Don't overwrite freshly downloaded images with older versions
           cp -rn images/. output/images/ 2>/dev/null || true
+          echo "images present before scrape: $(ls output/images 2>/dev/null | wc -l)"
+
+      - name: Run scraper
+        env:
+          APIFY_TOKEN: ${{ secrets.APIFY_TOKEN }}
+          MODE: ${{ inputs.mode || 'incremental' }}
+        run: python scrape.py
 
       - name: Push data to data branch
         run: |

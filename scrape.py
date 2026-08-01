@@ -1,5 +1,16 @@
 """
-GitHub Action scraper — runs on demand, outputs data.json + images/ to ./output/
+GitHub Action scraper — incremental by default to minimise Apify usage.
+
+Apify bills per post returned, so we never re-pull history we already have:
+  * incremental (default) — only the newest RECENT_LIMIT posts per known account
+  * backfill (MODE=backfill) — deep pull of BACKFILL_LIMIT posts for every account
+
+Accounts with no stored posts (newly added) are always deep-pulled, so adding a
+competitor to COMPETITORS just works without a manual backfill run.
+
+Posts are merged into the existing store by shortcode: new ones are appended,
+recent ones get refreshed engagement, and older history is preserved untouched.
+Outputs data.json + images/ to ./output/
 """
 import json
 import os
@@ -10,12 +21,19 @@ from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import io
 
+from store import merge_posts
+
 APIFY_TOKEN = os.environ["APIFY_TOKEN"]
 REPO_RAW = "https://raw.githubusercontent.com/florettich2212-dev/instagram-competitor-dashboard/data"
 OUT = Path("output")
 IMG = OUT / "images"
 OUT.mkdir(exist_ok=True)
 IMG.mkdir(exist_ok=True)
+
+MODE = os.environ.get("MODE", "incremental").strip().lower()
+# Instagram returns newest-first, so a shallow window still catches all new activity
+RECENT_LIMIT = int(os.environ.get("RECENT_LIMIT", "24"))
+BACKFILL_LIMIT = int(os.environ.get("BACKFILL_LIMIT", "200"))
 
 COMPETITORS = [
     "lamaisondeleoniie",
@@ -42,6 +60,9 @@ COMPETITORS = [
     "maison_herrfurth",
     "liebs_hier",
     "metsamoodi",
+    "rachel.spanjersberg",
+    "kirani.home",
+    "birsiw",
 ]
 
 IMG_HEADERS = {
@@ -120,36 +141,88 @@ def build_slides(post):
     return slides if len(slides) > 1 else []
 
 
+def load_existing():
+    """Previously stored accounts, keyed by username. Empty dict on first run."""
+    try:
+        r = requests.get(f"{REPO_RAW}/data.json", timeout=25)
+        if r.status_code != 200:
+            print(f"[store] no existing data.json (HTTP {r.status_code}) — treating as first run")
+            return {}
+        data = r.json()
+        total = sum(len(a.get("posts", [])) for a in data)
+        print(f"[store] loaded {len(data)} accounts / {total} posts")
+        return {a["username"]: a for a in data}
+    except Exception as e:
+        print(f"[store] could not load existing data.json ({e}) — treating as first run")
+        return {}
+
+
+def scrape_posts(usernames, limit, label, batch_size):
+    """Fetch posts for a set of accounts, batched to avoid Instagram rate limiting."""
+    out = []
+    batches = [usernames[i:i + batch_size] for i in range(0, len(usernames), batch_size)]
+    for n, batch in enumerate(batches, 1):
+        print(f"  [{label}] batch {n}/{len(batches)} — {len(batch)} accounts × {limit} posts")
+        out += run_apify(
+            "apify~instagram-scraper",
+            {"directUrls": [f"https://www.instagram.com/{u}/" for u in batch],
+             "resultsType": "posts", "resultsLimit": limit,
+             "proxy": {"useApifyProxy": True}},
+        )
+        if n < len(batches):
+            print("    waiting 30s before next batch …")
+            time.sleep(30)
+    return out
+
+
 def main():
+    print(f"MODE={MODE} (recent={RECENT_LIMIT}, backfill={BACKFILL_LIMIT})")
+    existing = load_existing()
     result = {u: {"full_name": "", "followers": 0, "posts": []} for u in COMPETITORS}
 
-    print("Step 1/3: profiles …")
+    # Profiles are ~1 billed result each — cheap, and postsCount tells us which
+    # accounts actually published something since last run.
+    print("Step 1/4: profiles …")
     profiles = run_apify("apify~instagram-profile-scraper", {"usernames": COMPETITORS})
     for p in profiles:
         u = p.get("username", "")
         if u in result:
             result[u]["full_name"] = p.get("fullName", "")
             result[u]["followers"] = p.get("followersCount", 0)
+            result[u]["posts_count"] = p.get("postsCount") or 0
     print(f"  → {len(profiles)} profiles fetched")
 
-    print("Step 2/3: posts (batch 1/2) …")
-    batch1 = [f"https://www.instagram.com/{u}/" for u in COMPETITORS[:12]]
-    posts_raw1 = run_apify(
-        "apify~instagram-scraper",
-        {"directUrls": batch1, "resultsType": "posts", "resultsLimit": 100,
-         "proxy": {"useApifyProxy": True}},
-    )
-    print("  batch 1 done — waiting 30s before batch 2 …")
-    time.sleep(30)
+    # Accounts we have no history for must be deep-pulled regardless of mode
+    known = [u for u in COMPETITORS if existing.get(u, {}).get("posts")]
+    unknown = [u for u in COMPETITORS if u not in known]
+    if MODE == "backfill":
+        deep, shallow, skipped = COMPETITORS, [], []
+    else:
+        deep = unknown
+        # Skip accounts whose profile post count is unchanged: they published
+        # nothing new, and their existing posts are already old enough that
+        # engagement has effectively plateaued.
+        shallow, skipped = [], []
+        for u in known:
+            live = result[u].get("posts_count") or 0
+            seen = existing.get(u, {}).get("posts_count")
+            (skipped if (live and seen and live == seen) else shallow).append(u)
+        if skipped:
+            print(f"  skipping {len(skipped)} account(s) with no new posts: {', '.join(skipped)}")
 
-    print("Step 2/3: posts (batch 2/2) …")
-    batch2 = [f"https://www.instagram.com/{u}/" for u in COMPETITORS[12:]]
-    posts_raw2 = run_apify(
-        "apify~instagram-scraper",
-        {"directUrls": batch2, "resultsType": "posts", "resultsLimit": 100,
-         "proxy": {"useApifyProxy": True}},
-    )
-    posts_raw = posts_raw1 + posts_raw2
+    print(f"Step 2/4: posts — {len(shallow)} incremental, {len(deep)} full pull, "
+          f"{len(skipped)} skipped")
+    if deep:
+        print(f"  full pull for: {', '.join(deep)}")
+
+    posts_raw = []
+    if shallow:
+        posts_raw += scrape_posts(shallow, RECENT_LIMIT, "recent", 12)
+    if deep:
+        if shallow:
+            print("  waiting 30s before full-pull batches …")
+            time.sleep(30)
+        posts_raw += scrape_posts(deep, BACKFILL_LIMIT, "full", 6)
 
     for post in posts_raw:
         if post.get("error"):
@@ -175,9 +248,9 @@ def main():
             ],
         })
     total = sum(len(v["posts"]) for v in result.values())
-    print(f"  → {total} posts fetched")
+    print(f"  → {total} posts returned by Apify")
 
-    print("Step 3/3: images …")
+    print("Step 3/4: images …")
     all_posts = [post for acc in result.values() for post in acc["posts"]]
     tasks = [
         (post["displayUrl"], post["shortCode"], post)
@@ -216,12 +289,17 @@ def main():
                 slides_done += 1
     print(f"  → {slides_done}/{len(slide_tasks)} extra carousel slides downloaded")
 
-    # Build final JSON — save ALL posts unfiltered (frontend filters by days)
+    # Step 4: merge the freshly scraped window into stored history.
+    # A shortcode union can only grow, so a rate-limited run can never delete data.
+    print("Step 4/4: merging into store …")
     output = []
+    total_added = 0
     for u in COMPETITORS:
         acc = result[u]
-        followers = acc["followers"]
-        posts_out = []
+        old_acc = existing.get(u, {})
+        followers = acc["followers"] or old_acc.get("followers", 0)
+
+        fresh = []
         for post in acc["posts"]:
             ts = post.get("timestamp", "")
             if not ts:
@@ -229,8 +307,7 @@ def main():
             likes = post.get("likesCount") or 0
             comments = post.get("commentsCount") or 0
             engagement = likes + comments
-            er = round(engagement / followers * 100, 2) if followers else 0
-            posts_out.append({
+            fresh.append({
                 "shortcode": post.get("shortCode", ""),
                 "url": post.get("url", ""),
                 "date": ts,
@@ -239,47 +316,44 @@ def main():
                 "views": post.get("viewsCount") or 0,
                 "video_url": post.get("videoUrl") or "",
                 "engagement": engagement,
-                "engagement_rate": er,
+                "engagement_rate": round(engagement / followers * 100, 2) if followers else 0,
                 "caption": (post.get("caption") or "")[:280],
                 "is_video": post.get("type") == "Video",
                 "thumbnail_url": post.get("localImage") or "",
                 "slides": build_slides(post),
             })
+
+        stored = old_acc.get("posts", [])
+        posts_out, added = merge_posts(stored, fresh, followers)
+        total_added += added
+        if u in skipped:
+            print(f"  @{u}: skipped (no new posts) — {len(posts_out)} kept")
+        elif added or len(stored) != len(posts_out):
+            print(f"  @{u}: {len(stored)} stored + {len(fresh)} scraped → "
+                  f"{len(posts_out)} total ({added} new)")
+        elif not fresh and stored:
+            print(f"  @{u}: 0 scraped (rate-limited?) — kept {len(stored)} stored")
+
+        # Only advance the stored post count when we actually pulled this account,
+        # otherwise a skip would hide posts published during a failed run.
+        scraped = u in shallow or u in deep
+        posts_count = acc.get("posts_count") if scraped else old_acc.get("posts_count")
+
         output.append({
             "username": u,
-            "full_name": acc["full_name"],
+            "full_name": acc["full_name"] or old_acc.get("full_name", ""),
             "followers": followers,
+            "posts_count": posts_count or old_acc.get("posts_count") or 0,
             "posts": posts_out,
+            # Always "now": the frontend polls this to detect a completed refresh
             "fetched_at": datetime.now(timezone.utc).isoformat(),
         })
 
-    # Guard against rate-limited runs destroying good data: load the previous
-    # data.json and, per account, keep whichever version has more posts. A healthy
-    # scrape returns an account's full recent history, so fewer posts = rate-limited.
-    try:
-        prev = requests.get(f"{REPO_RAW}/data.json", timeout=20).json()
-        prev_by_user = {a["username"]: a for a in prev}
-    except Exception as e:
-        print(f"[merge] could not load previous data.json ({e}) — writing fresh")
-        prev_by_user = {}
-
-    merged = []
-    kept = 0
-    for acc in output:
-        old = prev_by_user.get(acc["username"])
-        if old and len(old.get("posts", [])) > len(acc["posts"]):
-            print(f"[merge] @{acc['username']}: kept {len(old['posts'])} existing "
-                  f"(new run only had {len(acc['posts'])} — likely rate-limited)")
-            old["followers"] = acc["followers"] or old.get("followers", 0)
-            merged.append(old)
-            kept += 1
-        else:
-            merged.append(acc)
-
     with open(OUT / "data.json", "w") as f:
-        json.dump(merged, f)
-    print(f"Saved output/data.json — {sum(len(a['posts']) for a in merged)} posts total "
-          f"({kept} accounts kept from previous run)")
+        json.dump(output, f)
+    grand = sum(len(a["posts"]) for a in output)
+    print(f"Saved output/data.json — {grand} posts total, {total_added} newly added "
+          f"({total} pulled from Apify this run)")
 
 
 if __name__ == "__main__":

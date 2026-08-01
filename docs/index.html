@@ -514,7 +514,7 @@
     <div class="st-hero">
       <div class="st-eyebrow">Competitor Intelligence</div>
       <h2>Content Studio</h2>
-      <p>Hooks and captions generated from what's actually performing across your 24 tracked competitors — proven patterns, original wording.</p>
+      <p id="st-blurb">Hooks and captions generated from what's actually performing across your tracked competitors — proven patterns, original wording.</p>
     </div>
 
     <div class="st-panel st-glass">
@@ -652,6 +652,10 @@ function render() {
 
 function renderSummary(data) {
   const posts = data.flatMap(a => a.posts || []);
+  document.getElementById('sum-accounts').textContent = data.length;
+  const blurb = document.getElementById('st-blurb');
+  if (blurb) blurb.textContent =
+    `Hooks and captions generated from what's actually performing across your ${data.length} tracked competitors — proven patterns, original wording.`;
   document.getElementById('sum-posts').textContent = posts.length;
   const ers = posts.map(p => p.engagement_rate).filter(Boolean);
   document.getElementById('sum-er').textContent = ers.length
