@@ -15,7 +15,7 @@ on:
       deepen:
         description: 'Comma-separated accounts to deep-pull (extends truncated history). Overrides mode.'
         required: false
-        default: 'eloisepreen,hannesmauritzson,herz.und.blut,maison_herrfurth,housenumbereight_,konradpichlmeier,lille_arkiv,seventeenandfive'
+        default: 'hannesmauritzson,herz.und.blut,maison_herrfurth,konradpichlmeier'
         type: string
       deepen_limit:
         description: 'Posts per deepened account'
