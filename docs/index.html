@@ -249,7 +249,7 @@
       border: 1px solid var(--border);
     }
     table.lb { border-collapse: collapse; width: 100%; font-size: 13px; }
-    table.lb th, table.lb td { padding: 11px 14px; white-space: nowrap; }
+    table.lb th, table.lb td { padding: 11px 10px; white-space: nowrap; }
     table.lb thead th {
       position: sticky; top: 0; z-index: 2;
       background: rgba(255,255,255,0.92); backdrop-filter: blur(10px);
@@ -263,19 +263,25 @@
     table.lb tbody tr { border-bottom: 1px solid var(--border); transition: background 0.12s; }
     table.lb tbody tr:last-child { border-bottom: none; }
     table.lb tbody tr:hover { background: var(--bg); }
-    .ta-left { text-align: left; } .ta-right { text-align: right; } .ta-center { text-align: center; }
+    /* Everything is centred; the account cell keeps its own left-aligned layout */
+    table.lb th, table.lb td { text-align: center; }
     .lb-rank { color: var(--text3); font-variant-numeric: tabular-nums; width: 34px; }
-    .lb-acct a { display: flex; align-items: center; gap: 10px; text-decoration: none; color: inherit; }
+    table.lb th.lb-acct-h, table.lb td.lb-acct { text-align: left; }
+    /* One creator's display name is ~2x everyone else's, so the column is capped
+       and long names truncate rather than stretching the whole table. */
+    .lb-acct { max-width: 210px; }
+    .lb-acct a { display: flex; align-items: center; gap: 10px; text-decoration: none; color: inherit; min-width: 0; }
     .lb-acct a:hover .lb-names b { text-decoration: underline; }
     .lb-pic { width: 34px; height: 34px; border-radius: 50%; object-fit: cover; flex-shrink: 0; background: #e5e5ea; }
     .lb-pic-ph {
       display: flex; align-items: center; justify-content: center;
       font-size: 11px; font-weight: 600; color: var(--text2);
     }
-    .lb-names { display: flex; flex-direction: column; line-height: 1.25; }
+    .lb-names { display: flex; flex-direction: column; line-height: 1.25; min-width: 0; }
+    .lb-names b, .lb-names em { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
     .lb-names b { font-weight: 600; font-size: 13px; }
     .lb-names em { font-style: normal; font-size: 11px; color: var(--text3); }
-    table.lb td.ta-right { font-variant-numeric: tabular-nums; }
+    table.lb td { font-variant-numeric: tabular-nums; }
     .lb-hi { font-weight: 600; }
     .lb-dim { color: var(--text3); }
 
@@ -905,10 +911,11 @@ function renderLeaderboard(filtered) {
   });
 
   const head = cols.map(c => {
-    if (c.sortable === false) return `<th class="ta-${c.align}">${c.label}</th>`;
+    const extra = c.key === 'account' ? ' lb-acct-h' : '';
+    if (c.sortable === false) return `<th class="ta-${c.align}${extra}">${c.label}</th>`;
     const on = c.key === activeKey;
     const arrow = on ? (dir === -1 ? ' ↓' : ' ↑') : '';
-    return `<th class="ta-${c.align} lb-sortable${on ? ' on' : ''}" onclick="lbSort('${c.key}')">${c.label}${arrow}</th>`;
+    return `<th class="ta-${c.align}${extra} lb-sortable${on ? ' on' : ''}" onclick="lbSort('${c.key}')">${c.label}${arrow}</th>`;
   }).join('');
 
   const body = rows.map((a, i) => {
@@ -919,7 +926,7 @@ function renderLeaderboard(filtered) {
           <a href="https://instagram.com/${a.username}" target="_blank" rel="noopener" title="Open @${a.username} on Instagram">
             ${pic ? `<img class="lb-pic" src="${pic}" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'lb-pic lb-pic-ph',textContent:'${ini(a.full_name||a.username)}'}))">`
                   : `<div class="lb-pic lb-pic-ph">${ini(a.full_name||a.username)}</div>`}
-            <span class="lb-names"><b>${a.full_name || a.username}</b><em>@${a.username}</em></span>
+            <span class="lb-names"><b title="${(a.full_name || a.username).replace(/"/g,'&quot;')}">${a.full_name || a.username}</b><em>@${a.username}</em></span>
           </a></td>`;
       if (c.key === 'refresh') return `<td class="ta-center"><button class="btn-acc-refresh" id="acc-refresh-${a.username}" onclick="refreshAccount('${a.username}')" title="Refresh this account">↻</button></td>`;
       const v = c.val(a);
