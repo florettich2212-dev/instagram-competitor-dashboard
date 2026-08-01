@@ -539,14 +539,6 @@
       <div class="lb-hint" id="lb-hint"></div>
     </div>
     <div class="lb-wrap"><table class="lb" id="lb-table"></table></div>
-    <div class="accounts" id="accounts" style="display:none">
-      <div class="skeleton-grid" style="grid-column:1/-1">
-        <div class="sk-card"><div class="sk-line" style="width:40%;height:14px"></div><div class="sk-line" style="width:24%"></div><div class="sk-line" style="width:100%;margin-top:16px"></div><div class="sk-line"></div><div class="sk-line" style="width:70%"></div></div>
-        <div class="sk-card"><div class="sk-line" style="width:40%;height:14px"></div><div class="sk-line" style="width:24%"></div><div class="sk-line" style="width:100%;margin-top:16px"></div><div class="sk-line"></div><div class="sk-line" style="width:70%"></div></div>
-        <div class="sk-card"><div class="sk-line" style="width:40%;height:14px"></div><div class="sk-line" style="width:24%"></div><div class="sk-line" style="width:100%;margin-top:16px"></div><div class="sk-line"></div><div class="sk-line" style="width:70%"></div></div>
-        <div class="sk-card"><div class="sk-line" style="width:40%;height:14px"></div><div class="sk-line" style="width:24%"></div><div class="sk-line" style="width:100%;margin-top:16px"></div><div class="sk-line"></div><div class="sk-line" style="width:70%"></div></div>
-      </div>
-    </div>
   </div>
   </div><!-- /dash-view -->
 
@@ -954,46 +946,6 @@ function lbSort(key) {
 
 function renderAccounts(data) {
   renderLeaderboard(data);
-  const sortedAccounts = [...data].sort((a,b) => {
-    const ap = sorted(a.posts)[0], bp = sorted(b.posts)[0];
-    if (!ap && !bp) return 0; if (!ap) return 1; if (!bp) return -1;
-    return currentSort === 'date' ? new Date(bp.date)-new Date(ap.date) : bp[currentSort]-ap[currentSort];
-  });
-  document.getElementById('accounts').innerHTML = sortedAccounts.map(acc => {
-    const posts = sorted(acc.posts);
-    const avgEr = posts.length ? (posts.reduce((s,p)=>s+p.engagement_rate,0)/posts.length).toFixed(2) : '0';
-    return `<div class="acc-card">
-      <div class="acc-top">
-        <div class="acc-avatar">${ini(acc.full_name||acc.username)}</div>
-        <div class="acc-info">
-          <div class="acc-name">${acc.full_name||acc.username}</div>
-          <div class="acc-handle">@${acc.username}</div>
-        </div>
-        <a class="acc-link" href="https://instagram.com/${acc.username}" target="_blank" rel="noopener">View ↗</a>
-        <button class="btn-acc-refresh" id="acc-refresh-${acc.username}" onclick="refreshAccount('${acc.username}')" title="Refresh this account">↻</button>
-      </div>
-      ${acc.error ? `<div class="err-msg">${acc.error}</div>` : ''}
-      <div class="acc-kpis">
-        <div class="kpi"><div class="kpi-n">${fmt(acc.followers||0)}</div><div class="kpi-l">Followers</div></div>
-        <div class="kpi"><div class="kpi-n">${posts.length}</div><div class="kpi-l">Posts</div></div>
-        <div class="kpi"><div class="kpi-n">${avgEr}%</div><div class="kpi-l">Avg ER</div></div>
-      </div>
-      ${posts.length === 0 ? `<p class="no-posts-msg">No posts in this window.</p>` : `
-      <div class="post-rows">
-        ${posts.slice(0,5).map((p,i) => {
-          const src = imgUrl(p.thumbnail_url);
-          return `<a class="post-item" href="${p.url}" target="_blank" rel="noopener">
-            <span class="post-num ${i===0?'top':''}">${i+1}</span>
-            ${src ? `<img class="post-img" src="${src}" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'post-img-ph'}))">` : `<div class="post-img-ph"></div>`}
-            <span class="post-cap">${p.caption||'—'}</span>
-            <span class="post-badge ${p.is_video?'vid':''}">${p.is_video?'VID':'IMG'}</span>
-            <span class="post-val">${metricVal(p)}</span>
-            <span class="post-dt">${fmtD(p.date)}</span>
-          </a>`;
-        }).join('')}
-      </div>`}
-    </div>`;
-  }).join('');
 }
 
 // ─── Load data ────────────────────────────────────────────────────────
@@ -1006,11 +958,12 @@ async function loadData() {
     const ts = rawData[0]?.fetched_at;
     document.getElementById('ts').textContent = ts ? new Date(ts).toLocaleString('en-GB') : '—';
   } catch {
-    document.getElementById('accounts').innerHTML = `
-      <div style="grid-column:1/-1;padding:60px;text-align:center">
+    document.getElementById('lb-table').innerHTML = `
+      <tbody><tr><td style="padding:60px;text-align:center">
         <p style="font-size:17px;font-weight:600;margin-bottom:8px">No data yet</p>
-        <p style="font-size:14px;color:var(--text3);margin-bottom:20px">Click <strong>Refresh data</strong> to run your first scrape.</p>
-      </div>`;
+        <p style="font-size:14px;color:var(--text3)">Click <strong>Refresh data</strong> to run your first scrape.</p>
+      </td></tr></tbody>`;
+    document.getElementById('lb-hint').textContent = '';
     document.getElementById('spotlight').innerHTML = '';
   }
 }
