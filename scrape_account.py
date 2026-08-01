@@ -11,8 +11,9 @@ from store import merge_posts
 
 APIFY_TOKEN = os.environ["APIFY_TOKEN"]
 USERNAME    = os.environ["USERNAME"]
-RECENT_LIMIT   = int(os.environ.get("RECENT_LIMIT", "24"))
-BACKFILL_LIMIT = int(os.environ.get("BACKFILL_LIMIT", "200"))
+RECENT_LIMIT      = int(os.environ.get("RECENT_LIMIT", "24"))
+# Matches scrape.py: accounts with no stored history get a modest backfill, not a deep one
+NEW_ACCOUNT_LIMIT = int(os.environ.get("NEW_ACCOUNT_LIMIT", "60"))
 OUT  = Path("output")
 IMG  = OUT / "images"
 OUT.mkdir(exist_ok=True)
@@ -106,7 +107,7 @@ def main():
     # Instagram returns newest-first, so this still catches everything new.
     stored_count = len(next((a.get("posts", []) for a in existing
                              if a["username"] == USERNAME), []))
-    limit = RECENT_LIMIT if stored_count else BACKFILL_LIMIT
+    limit = RECENT_LIMIT if stored_count else NEW_ACCOUNT_LIMIT
     print(f"  {stored_count} posts stored → pulling {limit} most recent")
 
     posts_raw = []
