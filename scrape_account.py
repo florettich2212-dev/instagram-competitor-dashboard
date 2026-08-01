@@ -14,6 +14,10 @@ USERNAME    = os.environ["USERNAME"]
 RECENT_LIMIT      = int(os.environ.get("RECENT_LIMIT", "24"))
 # Matches scrape.py: accounts with no stored history get a modest backfill, not a deep one
 NEW_ACCOUNT_LIMIT = int(os.environ.get("NEW_ACCOUNT_LIMIT", "60"))
+# Explicit override to deepen an account whose stored history is too shallow.
+# Incremental runs only ever fetch the newest posts, so history never grows
+# backwards on its own — this is the way to extend it.
+POST_LIMIT        = int(os.environ.get("POST_LIMIT", "0"))
 OUT  = Path("output")
 IMG  = OUT / "images"
 OUT.mkdir(exist_ok=True)
@@ -128,8 +132,9 @@ def main():
     # Instagram returns newest-first, so this still catches everything new.
     stored_count = len(next((a.get("posts", []) for a in existing
                              if a["username"] == USERNAME), []))
-    limit = RECENT_LIMIT if stored_count else NEW_ACCOUNT_LIMIT
-    print(f"  {stored_count} posts stored → pulling {limit} most recent")
+    limit = POST_LIMIT or (RECENT_LIMIT if stored_count else NEW_ACCOUNT_LIMIT)
+    print(f"  {stored_count} posts stored → pulling {limit} most recent"
+          + (" (explicit deep pull)" if POST_LIMIT else ""))
 
     posts_raw = []
     for attempt in range(1, 4):
