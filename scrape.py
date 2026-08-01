@@ -107,6 +107,7 @@ def run_apify(actor_id, payload, timeout=600):
     print(f"[apify] started {actor_id} → {run_id}")
 
     deadline = time.time() + timeout
+    finished = False
     while time.time() < deadline:
         time.sleep(8)
         status = requests.get(
@@ -115,7 +116,13 @@ def run_apify(actor_id, payload, timeout=600):
         ).json()["data"]["status"]
         print(f"[apify] {status}")
         if status in ("SUCCEEDED", "FAILED", "ABORTED", "TIMED-OUT"):
+            finished = True
             break
+    if not finished:
+        # Bailing here yields a partially-filled dataset, which previously looked
+        # like a clean success and silently left accounts un-scraped.
+        print(f"[apify] !! gave up waiting after {timeout}s — run {run_id} still going. "
+              f"Results below are PARTIAL; some accounts in this batch may return nothing.")
 
     items = requests.get(
         f"https://api.apify.com/v2/datasets/{dataset_id}/items",
@@ -190,18 +197,27 @@ def load_existing():
         return {}
 
 
-def scrape_posts(usernames, limit, label, batch_size):
-    """Fetch posts for a set of accounts, batched to avoid Instagram rate limiting."""
+def scrape_posts(usernames, limit, label, batch_size, timeout=600):
+    """Fetch posts for a set of accounts, batched to avoid Instagram rate limiting.
+    Deep pulls need small batches and a long timeout: one Apify run returning
+    batch_size x limit posts can take far longer than a shallow refresh."""
     out = []
     batches = [usernames[i:i + batch_size] for i in range(0, len(usernames), batch_size)]
     for n, batch in enumerate(batches, 1):
-        print(f"  [{label}] batch {n}/{len(batches)} — {len(batch)} accounts × {limit} posts")
-        out += run_apify(
+        print(f"  [{label}] batch {n}/{len(batches)} — {len(batch)} accounts × {limit} posts "
+              f"(≤{batch_size * limit} results, waiting up to {timeout}s)")
+        got = run_apify(
             "apify~instagram-scraper",
             {"directUrls": [f"https://www.instagram.com/{u}/" for u in batch],
              "resultsType": "posts", "resultsLimit": limit,
              "proxy": {"useApifyProxy": True}},
+            timeout=timeout,
         )
+        returned = {p.get("ownerUsername") for p in got if not p.get("error")}
+        empty = [u for u in batch if u not in returned]
+        if empty:
+            print(f"    !! no posts returned for: {', '.join(empty)}")
+        out += got
         if n < len(batches):
             print("    waiting 30s before next batch …")
             time.sleep(30)
@@ -290,7 +306,9 @@ def main():
         if shallow:
             print("  waiting 30s before full-pull batches …")
             time.sleep(30)
-        posts_raw += scrape_posts(deep, deep_limit, "full", 6)
+        # Small batches + a long wait: 6x120 in one run reliably outlasted the old
+        # 600s timeout, which silently returned partial data.
+        posts_raw += scrape_posts(deep, deep_limit, "full", 2, timeout=1800)
 
     for post in posts_raw:
         if post.get("error"):

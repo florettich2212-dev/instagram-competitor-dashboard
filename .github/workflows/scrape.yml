@@ -15,7 +15,7 @@ on:
       deepen:
         description: 'Comma-separated accounts to deep-pull (extends truncated history). Overrides mode.'
         required: false
-        default: 'hannesmauritzson,herz.und.blut,maison_herrfurth,konradpichlmeier'
+        default: 'hannesmauritzson,herz.und.blut,maison_herrfurth,konradpichlmeier,lamaisondeleoniie'
         type: string
       deepen_limit:
         description: 'Posts per deepened account'
@@ -29,7 +29,7 @@ permissions:
 jobs:
   scrape:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 120
 
     steps:
       - uses: actions/checkout@v4
