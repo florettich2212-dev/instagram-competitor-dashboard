@@ -12,6 +12,16 @@ on:
           - incremental
           - refresh-all
           - backfill
+      deepen:
+        description: 'Comma-separated accounts to deep-pull (extends truncated history). Overrides mode.'
+        required: false
+        default: 'eloisepreen,hannesmauritzson,herz.und.blut,maison_herrfurth,housenumbereight_,konradpichlmeier,lille_arkiv,seventeenandfive'
+        type: string
+      deepen_limit:
+        description: 'Posts per deepened account'
+        required: false
+        default: '120'
+        type: string
 
 permissions:
   contents: write
@@ -45,6 +55,8 @@ jobs:
         env:
           APIFY_TOKEN: ${{ secrets.APIFY_TOKEN }}
           MODE: ${{ inputs.mode || 'incremental' }}
+          DEEPEN: ${{ inputs.deepen }}
+          DEEPEN_LIMIT: ${{ inputs.deepen_limit || '120' }}
         run: python scrape.py
 
       - name: Push data to data branch

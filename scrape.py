@@ -39,6 +39,12 @@ BACKFILL_LIMIT = int(os.environ.get("BACKFILL_LIMIT", "200"))
 # typical creator, which is the dashboard's longest window — much cheaper than
 # a full backfill and Apify bills per post returned.
 NEW_ACCOUNT_LIMIT = int(os.environ.get("NEW_ACCOUNT_LIMIT", "60"))
+# Deepen specific accounts in a single run. Incremental scraping only grows history
+# forward, so an account truncated by an earlier failure never recovers on its own.
+# Doing this in one run (rather than N single-account runs) avoids racing pushes
+# to the data branch, where the last writer would clobber the others.
+DEEPEN = [u.strip() for u in os.environ.get("DEEPEN", "").split(",") if u.strip()]
+DEEPEN_LIMIT = int(os.environ.get("DEEPEN_LIMIT", "120"))
 
 COMPETITORS = [
     "lamaisondeleoniie",
@@ -239,7 +245,15 @@ def main():
     # Accounts we have no history for must be deep-pulled regardless of mode
     known = [u for u in COMPETITORS if existing.get(u, {}).get("posts")]
     unknown = [u for u in COMPETITORS if u not in known]
-    if MODE == "backfill":
+    if DEEPEN:
+        deep = [u for u in COMPETITORS if u in DEEPEN]
+        shallow = []
+        skipped = [u for u in COMPETITORS if u not in DEEPEN]
+        missing = [u for u in DEEPEN if u not in COMPETITORS]
+        if missing:
+            print(f"  WARNING: not tracked, ignoring: {', '.join(missing)}")
+        print(f"  deepening {len(deep)} account(s) to {DEEPEN_LIMIT} posts each")
+    elif MODE == "backfill":
         deep, shallow, skipped = COMPETITORS, [], []
     elif MODE == "refresh-all":
         # Recent-window depth, but nothing is skipped — used to refresh media and
@@ -263,7 +277,9 @@ def main():
     if deep:
         print(f"  full pull for: {', '.join(deep)}")
 
-    deep_limit = BACKFILL_LIMIT if MODE == "backfill" else NEW_ACCOUNT_LIMIT
+    deep_limit = (DEEPEN_LIMIT if DEEPEN
+                  else BACKFILL_LIMIT if MODE == "backfill"
+                  else NEW_ACCOUNT_LIMIT)
     est = len(shallow) * RECENT_LIMIT + len(deep) * deep_limit + len(COMPETITORS)
     print(f"  estimated Apify results this run: ~{est}")
 
