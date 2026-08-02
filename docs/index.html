@@ -184,6 +184,10 @@
     .cr-name { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; cursor: pointer; padding: 5px 0; }
     .cr-name input { accent-color: #0071e3; flex-shrink: 0; }
     .cr-name span { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .cr-fol {
+      font-style: normal; font-size: 11px; color: var(--text3);
+      font-variant-numeric: tabular-nums; flex-shrink: 0;
+    }
     .cr-only {
       font-family: inherit; font-size: 10px; color: var(--text3);
       background: none; border: 1px solid var(--border2); border-radius: 980px;
@@ -1141,7 +1145,10 @@ async function refreshAccount(username) {
 
 // ─── Creator filter ───────────────────────────────────────────────────
 function crNames() {
-  return [...rawData].map(a => a.username).sort((a, b) => a.localeCompare(b));
+  // Biggest accounts first — the ones you're most likely to isolate or exclude
+  return [...rawData]
+    .sort((a, b) => (b.followers || 0) - (a.followers || 0))
+    .map(a => a.username);
 }
 
 function crApply() {
@@ -1159,12 +1166,14 @@ function crApply() {
 function crRenderList() {
   const el = document.getElementById('cr-list');
   if (!el) return;
+  const follow = Object.fromEntries(rawData.map(a => [a.username, a.followers || 0]));
   el.innerHTML = crNames().map(u => `
     <div class="cr-row">
       <label class="cr-name">
         <input type="checkbox" ${creatorOn(u) ? 'checked' : ''} onchange="crSet('${u}', this.checked)">
         <span>@${u}</span>
       </label>
+      <em class="cr-fol">${fmt(follow[u])}</em>
       <button class="cr-only" onclick="crOnly('${u}')" title="Show only this creator">only</button>
     </div>`).join('');
 }
