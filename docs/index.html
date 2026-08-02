@@ -152,6 +152,45 @@
     .tt-stat { background: var(--bg); border-radius: 12px; padding: 10px 14px; }
     .tt-stat b { display: block; font-size: 20px; font-weight: 500; letter-spacing: -0.02em; }
     .tt-stat span { font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.06em; }
+    /* ─── Creator filter ─── */
+    .cr-wrap { position: relative; }
+    .cr-btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      font-family: inherit; font-size: 13px; color: var(--text);
+      background: var(--surface); border: 1px solid var(--border2);
+      border-radius: 980px; padding: 7px 14px; cursor: pointer; transition: all 0.15s;
+    }
+    .cr-btn:hover { border-color: var(--text3); }
+    .cr-menu {
+      display: none; position: absolute; right: 0; top: calc(100% + 6px); z-index: 60;
+      width: 260px; max-height: 340px; overflow-y: auto;
+      background: rgba(255,255,255,0.98); backdrop-filter: blur(20px);
+      border: 1px solid var(--border2); border-radius: 14px;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.16);
+    }
+    .cr-menu.open { display: block; }
+    .cr-menu-head {
+      display: flex; gap: 8px; padding: 10px 12px;
+      border-bottom: 1px solid var(--border); position: sticky; top: 0;
+      background: rgba(255,255,255,0.98);
+    }
+    .cr-menu-head button {
+      font-family: inherit; font-size: 12px; color: #0071e3;
+      background: none; border: none; cursor: pointer; padding: 2px 4px;
+    }
+    .cr-menu-head button:hover { text-decoration: underline; }
+    .cr-row { display: flex; align-items: center; gap: 6px; padding: 2px 12px; }
+    .cr-row:hover { background: var(--bg); }
+    .cr-name { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; cursor: pointer; padding: 5px 0; }
+    .cr-name input { accent-color: #0071e3; flex-shrink: 0; }
+    .cr-name span { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .cr-only {
+      font-family: inherit; font-size: 10px; color: var(--text3);
+      background: none; border: 1px solid var(--border2); border-radius: 980px;
+      padding: 2px 8px; cursor: pointer; flex-shrink: 0; transition: all 0.15s;
+    }
+    .cr-only:hover { background: var(--text); color: #fff; border-color: var(--text); }
+
     .tt-imglink { display: block; width: 100%; height: 100%; }
     .tt-sl {
       position: absolute; top: 50%; transform: translateY(-50%);
@@ -528,14 +567,20 @@
   </div>
 
   <div class="page">
-    <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:16px">
+    <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:16px;gap:16px;flex-wrap:wrap">
       <div class="section-label" style="margin-bottom:0">Top posts</div>
-      <div class="seg" id="limit-seg">
-        <button class="seg-btn active" onclick="setLimit(8,this)">8</button>
-        <button class="seg-btn" onclick="setLimit(20,this)">20</button>
-        <button class="seg-btn" onclick="setLimit(50,this)">50</button>
-        <button class="seg-btn" onclick="setLimit(100,this)">100</button>
-        <button class="seg-btn" onclick="setLimit(200,this)">200</button>
+      <div class="cr-wrap">
+        <button class="cr-btn" id="cr-btn" onclick="crToggle(event)">
+          <span id="cr-label">All creators</span>
+          <svg viewBox="0 0 8 5" width="8" height="5"><path d="M0 0l4 5 4-5z" fill="currentColor"/></svg>
+        </button>
+        <div class="cr-menu" id="cr-menu">
+          <div class="cr-menu-head">
+            <button onclick="crAll(true)">Select all</button>
+            <button onclick="crAll(false)">Clear all</button>
+          </div>
+          <div class="cr-list" id="cr-list"></div>
+        </div>
       </div>
     </div>
     <div class="spotlight" id="spotlight"></div>
@@ -651,7 +696,12 @@ if (sessionStorage.getItem('auth') === '1') {
 }
 
 // ─── State ────────────────────────────────────────────────────────────
-var rawData = [], currentSort = 'likes', currentDays = 21, spotlightLimit = 8;
+var rawData = [], currentSort = 'likes', currentDays = 21;
+// Creator filter for the feed. null = every creator (the default); a Set means
+// only those usernames. Kept null rather than "all names" so newly tracked
+// accounts are included automatically instead of silently missing.
+var creatorFilter = null;
+const creatorOn = u => !creatorFilter || creatorFilter.has(u);
 
 // ─── Helpers ──────────────────────────────────────────────────────────
 const fmt  = n => !n ? '0' : n >= 1e6 ? (n/1e6).toFixed(1)+'M' : n >= 1000 ? (n/1000).toFixed(1)+'K' : ''+n;
@@ -700,8 +750,15 @@ function metricVal(p) {
 function render() {
   const data = filterData(rawData, currentDays);
   renderSummary(data);
+  crRenderList();
   renderSpotlight(data);
   renderAccounts(data);
+  const names = crNames();
+  const sel = names.filter(creatorOn);
+  document.getElementById('cr-label').textContent =
+    !creatorFilter || sel.length === names.length ? 'All creators'
+    : sel.length === 1 ? '@' + sel[0]
+    : `${sel.length} creators`;
 }
 
 function renderSummary(data) {
@@ -727,10 +784,15 @@ function renderSummary(data) {
 let viewerIdx = 0, slideIdx = 0;
 
 function renderSpotlight(data) {
+  // No post cap: the feed is everything matching the timeframe + creator filters,
+  // ordered by the active sort, so you can keep paging indefinitely.
   const all = [];
-  data.forEach(a => (a.posts||[]).forEach(p => all.push({...p, _a: a.username, _f: a.followers})));
+  data.forEach(a => {
+    if (!creatorOn(a.username)) return;
+    (a.posts||[]).forEach(p => all.push({...p, _a: a.username, _f: a.followers}));
+  });
   all.sort((a,b) => currentSort === 'date' ? new Date(b.date)-new Date(a.date) : b[currentSort]-a[currentSort]);
-  const top = all.slice(0, spotlightLimit);
+  const top = all;
   window._vp = top;
   if (viewerIdx >= top.length) viewerIdx = 0;
   const el = document.getElementById('spotlight');
@@ -1077,14 +1139,57 @@ async function refreshAccount(username) {
   }, 900000);
 }
 
-// ─── Controls ─────────────────────────────────────────────────────────
-function setLimit(n, el) {
-  spotlightLimit = n;
+// ─── Creator filter ───────────────────────────────────────────────────
+function crNames() {
+  return [...rawData].map(a => a.username).sort((a, b) => a.localeCompare(b));
+}
+
+function crApply() {
   viewerIdx = 0;
-  document.querySelectorAll('#limit-seg .seg-btn').forEach(b => b.classList.remove('active'));
-  el.classList.add('active');
+  const names = crNames();
+  const sel = names.filter(creatorOn);
+  document.getElementById('cr-label').textContent =
+    !creatorFilter || sel.length === names.length ? 'All creators'
+    : sel.length === 1 ? '@' + sel[0]
+    : `${sel.length} creators`;
+  crRenderList();
   if (rawData.length) renderSpotlight(filterData(rawData, currentDays));
 }
+
+function crRenderList() {
+  const el = document.getElementById('cr-list');
+  if (!el) return;
+  el.innerHTML = crNames().map(u => `
+    <div class="cr-row">
+      <label class="cr-name">
+        <input type="checkbox" ${creatorOn(u) ? 'checked' : ''} onchange="crSet('${u}', this.checked)">
+        <span>@${u}</span>
+      </label>
+      <button class="cr-only" onclick="crOnly('${u}')" title="Show only this creator">only</button>
+    </div>`).join('');
+}
+
+function crSet(u, on) {
+  // Materialise the "all" default into a real set the first time one is unticked
+  if (!creatorFilter) creatorFilter = new Set(crNames());
+  on ? creatorFilter.add(u) : creatorFilter.delete(u);
+  if (creatorFilter.size === crNames().length) creatorFilter = null;
+  crApply();
+}
+
+function crOnly(u) { creatorFilter = new Set([u]); crApply(); }
+function crAll(on) { creatorFilter = on ? null : new Set(); crApply(); }
+
+function crToggle(e) {
+  e.stopPropagation();
+  document.getElementById('cr-menu').classList.toggle('open');
+}
+document.addEventListener('click', e => {
+  const m = document.getElementById('cr-menu');
+  if (m && m.classList.contains('open') && !e.target.closest('.cr-wrap')) m.classList.remove('open');
+});
+
+// ─── Controls ─────────────────────────────────────────────────────────
 
 function setSort(k, el) {
   currentSort = k;
