@@ -16,7 +16,7 @@ import json
 import os
 import time
 import requests
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import io
@@ -39,6 +39,11 @@ BACKFILL_LIMIT = int(os.environ.get("BACKFILL_LIMIT", "200"))
 # typical creator, which is the dashboard's longest window — much cheaper than
 # a full backfill and Apify bills per post returned.
 NEW_ACCOUNT_LIMIT = int(os.environ.get("NEW_ACCOUNT_LIMIT", "60"))
+# Post records are kept forever (all-time averages need them), but their images
+# are only kept inside the dashboard's longest window. The data branch is
+# force-pushed in full every run, so unbounded image growth eventually exceeds
+# what GitHub will accept — this is what keeps the push under the limit.
+RETAIN_IMAGE_DAYS = int(os.environ.get("RETAIN_IMAGE_DAYS", "180"))
 # Deepen specific accounts in a single run. Incremental scraping only grows history
 # forward, so an account truncated by an earlier failure never recovers on its own.
 # Doing this in one run (rather than N single-account runs) avoids racing pushes
@@ -163,6 +168,41 @@ def download_image(url, code):
     except Exception as e:
         print(f"[img] failed {code}: {e}")
     return None
+
+
+def prune_images(output):
+    """Delete image files for posts outside the retention window.
+    Profile pictures are always kept; posts keep their records either way and
+    fall back to the Instagram embed when their image is gone."""
+    cutoff = datetime.now(timezone.utc) - timedelta(days=RETAIN_IMAGE_DAYS)
+    keep = set()
+    for acc in output:
+        for p in acc.get("posts", []):
+            try:
+                if datetime.fromisoformat(p["date"].replace("Z", "+00:00")) < cutoff:
+                    continue
+            except Exception:
+                pass              # unparseable date: keep the image rather than lose it
+            if p.get("thumbnail_url"):
+                keep.add(p["thumbnail_url"])
+            keep.update(p.get("slides") or [])
+
+    removed = freed = 0
+    for path in IMG.rglob("*"):
+        if not path.is_file():
+            continue
+        rel = path.relative_to(OUT).as_posix()
+        if rel.startswith("images/profiles/") or rel in keep:
+            continue
+        freed += path.stat().st_size
+        path.unlink()
+        removed += 1
+
+    kept = sum(1 for f in IMG.rglob("*") if f.is_file())
+    size = sum(f.stat().st_size for f in IMG.rglob("*") if f.is_file())
+    print(f"[prune] removed {removed:,} images ({freed/1048576:.0f} MB) "
+          f"outside {RETAIN_IMAGE_DAYS}d")
+    print(f"[prune] branch now {kept:,} images, {size/1048576:.0f} MB")
 
 
 def build_slides(post):
@@ -440,6 +480,8 @@ def main():
             # Always "now": the frontend polls this to detect a completed refresh
             "fetched_at": datetime.now(timezone.utc).isoformat(),
         })
+
+    prune_images(output)
 
     with open(OUT / "data.json", "w") as f:
         json.dump(output, f)
